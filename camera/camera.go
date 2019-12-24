@@ -145,6 +145,29 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 	return args
 }
 
+func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string {
+	var args = []string{
+		"-f",
+		inputCfg.Format,
+		"-i",
+		inputCfg.Source,
+		"-c:v",
+		"png",
+		"-vframes",
+		"1",
+		"-pix_fmt",
+		"yuv420p",
+		"-vsync",
+		"vfr",
+		"-video_size",
+		fmt.Sprintf("%d:-2", width),
+		"-f",
+		"image2pipe",
+		"-",
+	}
+	return args
+}
+
 func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamManagement, encoderProfile EncoderProfile) {
 	setTLV8Payload(sm.StreamingStatus.Bytes, rtp.StreamingStatus{Status: rtp.StreamingStatusAvailable})
 	setTLV8Payload(sm.SupportedVideoStreamConfiguration.Bytes, rtp.DefaultVideoStreamConfiguration())
@@ -268,25 +291,7 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 	setupStreamMgmt(inputCfg, camera.StreamManagement2, encoderProfile)
 
 	var snapshot = func(width, height uint) (*image.Image, error) {
-		args := []string{
-			"-f",
-			inputCfg.Format,
-			"-i",
-			inputCfg.Source,
-			"-c:v",
-			"png",
-			"-vframes",
-			"1",
-			"-pix_fmt",
-			"yuv420p",
-			"-vsync",
-			"vfr",
-			"-video_size",
-			fmt.Sprintf("%d:-2", width),
-			"-f",
-			"image2pipe",
-			"-",
-		}
+		var args = generateSnapshotArguments(inputCfg, width)
 
 		var ffmpegProcess = exec.Command(
 			"ffmpeg",
