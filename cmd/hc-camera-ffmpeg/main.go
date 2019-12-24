@@ -14,7 +14,7 @@ func main() {
 	var pin = flag.String("pin", "00102003", "pairing PIN for the accessory")
 	var storagePath = flag.String("storagePath", "hc-camera-ffmpeg-storage", "storage path")
 
-	var name = flag.String("name", "hc-doorbell", "name for the HomeKit Camera")
+	var name = flag.String("name", "HomeKit Camera", "name for the HomeKit Camera")
 	var manufacturer = flag.String("manufacturer", "Raspberry Pi Foundation", "manufacturer for the HomeKit Camera")
 	var model = flag.String("model", "Camera Module", "model for the HomeKit Camera")
 

@@ -17,7 +17,7 @@ Usage of hc-camera-ffmpeg:
   -model string
     	model for the HomeKit Camera (default "Camera Module")
   -name string
-    	name for the HomeKit Camera (default "hc-doorbell")
+    	name for the HomeKit Camera (default "HomeKit Camera")
   -pin string
     	pairing PIN for the accessory) (default "00102003")
   -port string
