@@ -136,6 +136,8 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			"AES_CM_128_HMAC_SHA1_80",
 			"-b:a",
 			fmt.Sprintf("%dk", streamCfg.Audio.RTP.Bitrate),
+			"-frame_duration",
+			"20",
 			"-srtp_out_params",
 			se.Audio.SrtpKey(),
 			fmt.Sprintf("srtp://%s:%d?rtcpport=%d&localrtcpport=%d&pkt_size=%d&timeout=60", se.ControllerAddr.IPAddr, se.ControllerAddr.AudioRtpPort, se.ControllerAddr.AudioRtpPort, se.ControllerAddr.AudioRtpPort, 3768),
