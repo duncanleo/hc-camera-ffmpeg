@@ -11,7 +11,7 @@ import (
 
 func main() {
 	var port = flag.String("port", "", "port for the HC accessory, leave empty to randomise")
-	var pin = flag.String("pin", "00102003", "pairing PIN for the accessory, defaults to 00102003")
+	var pin = flag.String("pin", "00102003", "pairing PIN for the accessory")
 	var storagePath = flag.String("storagePath", "hc-camera-ffmpeg-storage", "storage path")
 
 	var name = flag.String("name", "hc-doorbell", "name for the HomeKit Camera")
