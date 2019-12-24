@@ -129,7 +129,7 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			"-f",
 			"rtp",
 			"-ar",
-			"24000",
+			fmt.Sprintf("%d", streamAudioSampleRate(streamCfg)),
 			"-vbr",
 			"on",
 			"-srtp_out_suite",

@@ -30,3 +30,14 @@ func streamVideoMTP(se rtp.SetupEndpoints) int {
 		return 1228
 	}
 }
+
+func streamAudioSampleRate(cfg rtp.StreamConfiguration) int {
+	switch cfg.Audio.CodecParams.Samplerate {
+	case rtp.AudioCodecSampleRate16Khz:
+		return 16000
+	case rtp.AudioCodecSampleRate24Khz:
+		return 24000
+	default:
+		return 8000
+	}
+}
