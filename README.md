@@ -11,7 +11,7 @@ Usage of hc-camera-ffmpeg:
   -cameraInput string
     	input for the camera (default "/dev/video0")
   -encoderProfile string
-    	encoder profile for FFMPEG. Accepts: CPU, OMX, VAAPI (default "cpu")
+    	encoder profile for FFMPEG. Accepts: CPU, OMX, VAAPI (default "CPU")
   -manufacturer string
     	manufacturer for the HomeKit Camera (default "Raspberry Pi Foundation")
   -model string
