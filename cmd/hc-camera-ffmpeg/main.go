@@ -21,7 +21,7 @@ func main() {
 	var cameraInput = flag.String("cameraInput", "/dev/video0", "input for the camera")
 	var cameraFormat = flag.String("cameraFormat", "v4l2", "input for the camera")
 	var cameraAudio = flag.Bool("cameraAudio", false, "whether the camera has audio")
-	var encoderProfile = flag.String("encoderProfile", "cpu", "encoder profile for FFMPEG. Accepts: CPU, OMX, VAAPI")
+	var encoderProfile = flag.String("encoderProfile", "CPU", "encoder profile for FFMPEG. Accepts: CPU, OMX, VAAPI")
 
 	flag.Parse()
 
