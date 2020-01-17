@@ -141,10 +141,10 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			"rtp",
 			"-ar",
 			fmt.Sprintf("%d", streamAudioSampleRate(streamCfg)),
-			"-vbr",
-			"on",
-			"-application",
-			"voip",
+		)
+		args = append(args, streamAudioCodecOptions(streamCfg)...)
+		args = append(
+			args,
 			"-srtp_out_suite",
 			"AES_CM_128_HMAC_SHA1_80",
 			"-b:a",

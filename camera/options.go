@@ -52,3 +52,20 @@ func streamAudioCodec(cfg rtp.StreamConfiguration) string {
 		return "mp3" // This should never work
 	}
 }
+
+func streamAudioCodecOptions(cfg rtp.StreamConfiguration) []string {
+	switch cfg.Audio.CodecType {
+	case rtp.AudioCodecType_Opus:
+		return []string{
+			"-vbr",
+			"on",
+			"-application",
+			"voip",
+		}
+	case rtp.AudioCodecType_AAC_ELD:
+		return []string{}
+	default:
+		return []string{}
+	}
+
+}
