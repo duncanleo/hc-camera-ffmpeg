@@ -27,6 +27,11 @@ const (
 	VAAPI
 )
 
+var (
+	debug          = os.Getenv("DEBUG")
+	isDebugEnabled = debug == "*" || debug == "ffmpeg"
+)
+
 type InputConfiguration struct {
 	Source   string
 	Format   string
@@ -138,6 +143,8 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			fmt.Sprintf("%d", streamAudioSampleRate(streamCfg)),
 			"-vbr",
 			"on",
+			"-application",
+			"voip",
 			"-srtp_out_suite",
 			"AES_CM_128_HMAC_SHA1_80",
 			"-b:a",
@@ -209,7 +216,9 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 
 		switch cfg.Command.Type {
 		case rtp.SessionControlCommandTypeStart:
-			log.Println("start")
+			if isDebugEnabled {
+				log.Println("start")
+			}
 
 			args := generateArguments(inputCfg, cfg, se, encoderProfile)
 
@@ -217,31 +226,45 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 				"ffmpeg",
 				args...,
 			)
-			log.Println(ffmpegProcess.String())
-			ffmpegProcess.Stdout = os.Stdout
-			ffmpegProcess.Stderr = os.Stderr
+
+			if isDebugEnabled {
+				log.Println(ffmpegProcess.String())
+			}
+
+			if isDebugEnabled {
+				ffmpegProcess.Stdout = os.Stdout
+				ffmpegProcess.Stderr = os.Stderr
+			}
 			err = ffmpegProcess.Start()
 			break
 		case rtp.SessionControlCommandTypeResume:
-			log.Println("resume")
+			if isDebugEnabled {
+				log.Println("resume")
+			}
 			err = ffmpegProcess.Process.Signal(syscall.SIGCONT)
 			break
 		case rtp.SessionControlCommandTypeReconfigure:
-			log.Println("reconfigure")
+			if isDebugEnabled {
+				log.Println("reconfigure")
+			}
 			break
 		case rtp.SessionControlCommandTypeSuspend:
-			log.Println("suspend")
+			if isDebugEnabled {
+				log.Println("suspend")
+			}
 			err = ffmpegProcess.Process.Signal(syscall.SIGSTOP)
 			break
 		case rtp.SessionControlCommandTypeEnd:
-			log.Println("end")
+			if isDebugEnabled {
+				log.Println("end")
+			}
 			err = ffmpegProcess.Process.Kill()
 
 			delete(sessionMap, string(cfg.Command.Identifier))
 			break
 		}
 
-		if err != nil {
+		if err != nil && isDebugEnabled {
 			log.Println(err)
 		}
 
@@ -252,7 +275,7 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 		buf := sm.SetupEndpoints.GetValue()
 		var req rtp.SetupEndpoints
 		err := tlv8.Unmarshal(buf, &req)
-		if err != nil {
+		if err != nil && isDebugEnabled {
 			log.Fatalf("SetupEndpoints: Could not unmarshal tlv8 data: %s\n", err)
 		}
 
@@ -272,8 +295,9 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 			break
 		}
 
-		log.Println("Yay", ip)
-		log.Printf("[SetupEndpoints] IPv%d %s VideoRtpPort=%d AudioRtpPort=%d\n", req.ControllerAddr.IPVersion, ip, req.ControllerAddr.VideoRtpPort, req.ControllerAddr.AudioRtpPort)
+		if isDebugEnabled {
+			log.Printf("[SetupEndpoints] IPv%d %s VideoRtpPort=%d AudioRtpPort=%d\n", req.ControllerAddr.IPVersion, ip, req.ControllerAddr.VideoRtpPort, req.ControllerAddr.AudioRtpPort)
+		}
 
 		resp := rtp.SetupEndpointsResponse{
 			SessionId: req.SessionId,
@@ -291,8 +315,6 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 		}
 
 		sessionMap[string(req.SessionId)] = req
-
-		log.Printf("Responding with %+v\n", resp)
 
 		setTLV8Payload(sm.SetupEndpoints.Bytes, resp)
 	})
@@ -316,8 +338,10 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 
 		log.Println(ffmpegProcess.String())
 
-		ffmpegProcess.Stdout = &stdoutPipe
-		ffmpegProcess.Stderr = os.Stderr
+		if isDebugEnabled {
+			ffmpegProcess.Stdout = &stdoutPipe
+			ffmpegProcess.Stderr = os.Stderr
+		}
 		err := ffmpegProcess.Run()
 		if err != nil {
 			return nil, err
