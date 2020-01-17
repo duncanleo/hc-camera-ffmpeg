@@ -22,6 +22,7 @@ func main() {
 	var cameraFormat = flag.String("cameraFormat", "v4l2", "input for the camera")
 	var cameraAudio = flag.Bool("cameraAudio", false, "whether the camera has audio")
 	var encoderProfile = flag.String("encoderProfile", "CPU", "encoder profile for FFMPEG. Accepts: CPU, OMX, VAAPI")
+	var audioAAC = flag.Bool("aac", false, "whether to enable the libfdk-aac codec")
 
 	flag.Parse()
 
@@ -48,9 +49,10 @@ func main() {
 	}
 
 	var inputCfg = camera.InputConfiguration{
-		Source: *cameraInput,
-		Format: *cameraFormat,
-		Audio:  *cameraAudio,
+		Source:   *cameraInput,
+		Format:   *cameraFormat,
+		Audio:    *cameraAudio,
+		AudioAAC: *audioAAC,
 	}
 
 	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, inputCfg, encProfile)

@@ -28,9 +28,10 @@ const (
 )
 
 type InputConfiguration struct {
-	Source string
-	Format string
-	Audio  bool
+	Source   string
+	Format   string
+	Audio    bool
+	AudioAAC bool
 }
 
 func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfiguration, se rtp.SetupEndpoints, encoderProfile EncoderProfile) []string {
@@ -115,6 +116,11 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		fmt.Sprintf("srtp://%s:%d?rtcpport=%d&localrtcpport=%d&pkt_size=%d&timeout=60", se.ControllerAddr.IPAddr, se.ControllerAddr.VideoRtpPort, se.ControllerAddr.VideoRtpPort, se.ControllerAddr.VideoRtpPort, streamVideoMTP(se)),
 	)
 
+	var audioCodec = "libopus"
+	if inputCfg.AudioAAC {
+		audioCodec = streamAudioCodec(streamCfg)
+	}
+
 	if inputCfg.Audio {
 		args = append(
 			args,
@@ -123,7 +129,7 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			"-ssrc",
 			"2",
 			"-c:a",
-			"libopus",
+			audioCodec,
 			"-map",
 			"0:1",
 			"-f",
@@ -173,11 +179,17 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamManagement, encoderProfile EncoderProfile) {
 	setTLV8Payload(sm.StreamingStatus.Bytes, rtp.StreamingStatus{Status: rtp.StreamingStatusAvailable})
 	setTLV8Payload(sm.SupportedVideoStreamConfiguration.Bytes, rtp.DefaultVideoStreamConfiguration())
-	// setTLV8Payload(sm.SupportedAudioStreamConfiguration.Bytes, rtp.DefaultAudioStreamConfiguration())
+
+	var supportedCodecs = []rtp.AudioCodecConfiguration{
+		rtp.NewOpusAudioCodecConfiguration(),
+	}
+
+	if inputCfg.AudioAAC {
+		supportedCodecs = append(supportedCodecs, rtp.NewAacEldAudioCodecConfiguration())
+	}
+
 	setTLV8Payload(sm.SupportedAudioStreamConfiguration.Bytes, rtp.AudioStreamConfiguration{
-		Codecs: []rtp.AudioCodecConfiguration{
-			rtp.NewOpusAudioCodecConfiguration(),
-		},
+		Codecs:       supportedCodecs,
 		ComfortNoise: false,
 	})
 	setTLV8Payload(sm.SupportedRTPConfiguration.Bytes, rtp.NewConfiguration(rtp.CryptoSuite_AES_CM_128_HMAC_SHA1_80))
@@ -261,6 +273,7 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 		}
 
 		log.Println("Yay", ip)
+		log.Printf("[SetupEndpoints] IPv%d %s VideoRtpPort=%d AudioRtpPort=%d\n", req.ControllerAddr.IPVersion, ip, req.ControllerAddr.VideoRtpPort, req.ControllerAddr.AudioRtpPort)
 
 		resp := rtp.SetupEndpointsResponse{
 			SessionId: req.SessionId,
