@@ -23,6 +23,7 @@ func main() {
 	var cameraAudio = flag.Bool("cameraAudio", false, "whether the camera has audio")
 	var encoderProfile = flag.String("encoderProfile", "CPU", "encoder profile for FFMPEG. Accepts: CPU, OMX, VAAPI")
 	var audioAAC = flag.Bool("aac", false, "whether to enable the libfdk-aac codec")
+	var timestampOverlay = flag.Bool("timestampOverlay", false, "whether to enable timestamp overlay in FFMPEG")
 
 	flag.Parse()
 
@@ -49,10 +50,11 @@ func main() {
 	}
 
 	var inputCfg = camera.InputConfiguration{
-		Source:   *cameraInput,
-		Format:   *cameraFormat,
-		Audio:    *cameraAudio,
-		AudioAAC: *audioAAC,
+		Source:           *cameraInput,
+		Format:           *cameraFormat,
+		Audio:            *cameraAudio,
+		AudioAAC:         *audioAAC,
+		TimestampOverlay: *timestampOverlay,
 	}
 
 	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, inputCfg, encProfile)

@@ -33,10 +33,11 @@ var (
 )
 
 type InputConfiguration struct {
-	Source   string
-	Format   string
-	Audio    bool
-	AudioAAC bool
+	Source           string
+	Format           string
+	Audio            bool
+	AudioAAC         bool
+	TimestampOverlay bool
 }
 
 func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfiguration, se rtp.SetupEndpoints, encoderProfile EncoderProfile) []string {
@@ -98,9 +99,15 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		fmt.Sprintf("%d:-2", streamCfg.Video.Attributes.Width),
 		"-preset",
 		"veryfast",
-		//"-filter_complex",
-		//"drawtext=text='time\\: %{localtime}':fontcolor=white",
 	)
+
+	if inputCfg.TimestampOverlay {
+		args = append(
+			args,
+			"-filter_complex",
+			"drawtext=text='time\\: %{localtime}':fontcolor=white",
+		)
+	}
 
 	args = append(
 		args,

@@ -4,6 +4,8 @@ This is a DIY HomeKit IP Camera accessory, built with [hc](https://github.com/br
 ### Usage
 ```shell
 Usage of hc-camera-ffmpeg:
+  -aac
+    	whether to enable the libfdk-aac codec
   -cameraAudio
     	whether the camera has audio
   -cameraFormat string
@@ -24,6 +26,8 @@ Usage of hc-camera-ffmpeg:
     	port for the HC accessory, leave empty to randomise
   -storagePath string
     	storage path (default "hc-camera-ffmpeg-storage")
+  -timestampOverlay
+    	whether to enable timestamp overlay in FFMPEG
 ```
 
 ### Encoder Profiles
