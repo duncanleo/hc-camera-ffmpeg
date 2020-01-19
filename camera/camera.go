@@ -345,8 +345,8 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 
 		log.Println(ffmpegProcess.String())
 
+		ffmpegProcess.Stdout = &stdoutPipe
 		if isDebugEnabled {
-			ffmpegProcess.Stdout = &stdoutPipe
 			ffmpegProcess.Stderr = os.Stderr
 		}
 		err := ffmpegProcess.Run()
