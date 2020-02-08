@@ -63,7 +63,12 @@ func streamAudioCodecOptions(cfg rtp.StreamConfiguration) []string {
 			"voip",
 		}
 	case rtp.AudioCodecType_AAC_ELD:
-		return []string{}
+		return []string{
+			"-profile:a",
+			"aac_eld",
+			"-flags",
+			"+global_header",
+		}
 	default:
 		return []string{}
 	}
