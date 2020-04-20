@@ -89,6 +89,8 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		"yuv420p",
 		"-vsync",
 		"vfr",
+		"-protocol_whitelist",
+		"file,udp,tcp,rtp",
 	)
 
 	args = append(args, encoderOpts...)
