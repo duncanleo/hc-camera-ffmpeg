@@ -9,6 +9,8 @@ github.com/brutella/hc v1.2.0/go.mod h1:+2Oh6uBFo8fFD6YxUWbYc68MGtLCoMYzZS7I9r0y
 github.com/brutella/hc v1.2.1 h1:YkWfHtfeU51nrjd3yVtHeoBxF5ADsQA7k9yqeD4hFgk=
 github.com/brutella/hc v1.2.1/go.mod h1:klfQdOw5Er04/4xuDyv9Y776MWzObiufjP4Hjz/cTDc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/eclipse/paho.mqtt.golang v1.2.0 h1:1F8mhG9+aO5/xpdtFkW4SxOJB67ukuDC3t2y2qayIX0=
+github.com/eclipse/paho.mqtt.golang v1.2.0/go.mod h1:H9keYFcgq3Qr5OUJm/JZI/i6U7joQ8SYLhZwfeOo6Ts=
 github.com/gosexy/to v0.0.0-20141221203644-c20e083e3123 h1:6Q7VB4v0aEgIE6BtsbJhEH0KgFE0f+FHAxXePQp9Klc=
 github.com/gosexy/to v0.0.0-20141221203644-c20e083e3123/go.mod h1:oQuuq9ZkoRpy+2mhINlY3ZrwgywR77yPXmFpP6vCr/w=
 github.com/miekg/dns v1.1.1/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=

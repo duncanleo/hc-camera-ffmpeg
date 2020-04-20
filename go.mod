@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/brutella/hc v1.2.1
+	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/gosexy/to v0.0.0-20141221203644-c20e083e3123 // indirect
 	github.com/miekg/dns v1.1.27 // indirect
 	github.com/xiam/to v0.0.0-20200126224905-d60d31e03561 // indirect
