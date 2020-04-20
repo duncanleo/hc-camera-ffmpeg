@@ -89,17 +89,6 @@ func main() {
 
 	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, inputCfg, encProfile)
 
-	t, err := hc.NewIPTransport(hcConfig, cameraAcc.Accessory)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	t.CameraSnapshotReq = snapshotFunc
-
-	hc.OnTermination(func() {
-		<-t.Stop()
-	})
-
 	if *doorbell {
 		var doorbellService = service.NewDoorbell()
 		cameraAcc.AddService(doorbellService.Service)
@@ -121,6 +110,17 @@ func main() {
 		})
 
 	}
+
+	t, err := hc.NewIPTransport(hcConfig, cameraAcc.Accessory)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t.CameraSnapshotReq = snapshotFunc
+
+	hc.OnTermination(func() {
+		<-t.Stop()
+	})
 
 	t.Start()
 }
