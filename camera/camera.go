@@ -77,6 +77,8 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		args,
 		"-f",
 		inputCfg.Format,
+		"-protocol_whitelist",
+		"file,udp,tcp,rtp",
 		"-i",
 		inputCfg.Source,
 		"-c:v",
@@ -89,8 +91,6 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		"yuv420p",
 		"-vsync",
 		"vfr",
-		"-protocol_whitelist",
-		"file,udp,tcp,rtp",
 	)
 
 	args = append(args, encoderOpts...)
@@ -173,6 +173,8 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 	var args = []string{
 		"-f",
 		inputCfg.Format,
+		"-protocol_whitelist",
+		"file,udp,tcp,rtp",
 		"-i",
 		inputCfg.Source,
 		"-c:v",
@@ -185,8 +187,6 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 		"vfr",
 		"-video_size",
 		fmt.Sprintf("%d:-2", width),
-		"-protocol_whitelist",
-		"file,udp,tcp,rtp",
 		"-f",
 		"image2pipe",
 		"-",
