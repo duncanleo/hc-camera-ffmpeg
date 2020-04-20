@@ -185,6 +185,8 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 		"vfr",
 		"-video_size",
 		fmt.Sprintf("%d:-2", width),
+		"-protocol_whitelist",
+		"file,udp,tcp,rtp",
 		"-f",
 		"image2pipe",
 		"-",
