@@ -54,10 +54,16 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		encoderOpts = []string{
 			"-x264-params",
 			"intra-refresh=1:bframes=0",
+			"-vf",
+			fmt.Sprintf("scale=%d:-1", streamCfg.Video.Attributes.Width),
 		}
 		break
 	case OMX:
 		encoder = "h264_omx"
+		encoderOpts = []string{
+			"-vf",
+			fmt.Sprintf("scale=%d:-1", streamCfg.Video.Attributes.Width),
+		}
 		break
 	case VAAPI:
 		inputOpts = []string{
@@ -69,7 +75,9 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		encoder = "h264_vaapi"
 		encoderOpts = []string{
 			"-vf",
-			"format=nv12|vaapi,hwupload",
+			fmt.Sprintf("format=nv12|vaapi,hwupload,scale_vaapi=w=%d:h=-1", streamCfg.Video.Attributes.Width),
+			"-quality",
+			"10",
 			"-bf",
 			"0",
 		}
@@ -99,10 +107,6 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 
 	args = append(args, encoderOpts...)
 	args = append(args,
-		"-x264-params",
-		"intra-refresh=1:bframes=0",
-		"-video_size",
-		fmt.Sprintf("%d:-2", streamCfg.Video.Attributes.Width),
 		"-preset",
 		"veryfast",
 	)
