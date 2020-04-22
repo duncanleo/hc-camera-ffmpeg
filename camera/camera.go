@@ -190,6 +190,8 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 		"1",
 		"-vsync",
 		"vfr",
+		"-compression_level",
+		"50",
 		"-video_size",
 		fmt.Sprintf("%d:-2", width),
 		"-f",
