@@ -47,10 +47,14 @@ func main() {
 	var audioAAC = flag.Bool("aac", false, "whether to enable the libfdk-aac codec")
 	var timestampOverlay = flag.Bool("timestampOverlay", false, "whether to enable timestamp overlay in FFMPEG")
 
-	var doorbell = flag.Bool("doorbell", false, "whether to enable video doorbell support")
 	var brokerURI = flag.String("brokerURI", "mqtt://127.0.0.1:1883", "URI of the MQTT broker")
 	var clientID = flag.String("clientID", "hc-camera-ffmpeg", "client ID for MQTT")
-	var topic = flag.String("topic", "rpi-mqtt-doorbell", "MQTT topic to subscribe to")
+
+	var doorbell = flag.Bool("doorbell", false, "whether to enable video doorbell support")
+	var doorbellTopic = flag.String("doorbellTopic", "rpi-mqtt-doorbell", "MQTT topic to subscribe to")
+
+	var motion = flag.Bool("motion", false, "whether to enable motion support")
+	var motionTopic = flag.String("motionTopic", "mqtt-publish", "MQTT topic to subscribe to")
 
 	flag.Parse()
 
@@ -89,26 +93,41 @@ func main() {
 
 	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, inputCfg, encProfile)
 
+	var mqttURI *url.URL
+	var client mqtt.Client
+	var err error
+
+	if *doorbell || *motion {
+		mqttURI, err = url.Parse(*brokerURI)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		client, err = connect(*clientID, mqttURI)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	if *doorbell {
 		var doorbellService = service.NewDoorbell()
 		cameraAcc.AddService(doorbellService.Service)
 
-		mqttURI, err := url.Parse(*brokerURI)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		client, err := connect(*clientID, mqttURI)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		client.Subscribe(*topic, 0, func(client mqtt.Client, msg mqtt.Message) {
-			log.Printf("[%s]: %s\n", *topic, string(msg.Payload()))
+		client.Subscribe(*doorbellTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
+			log.Printf("[%s]: %s\n", *doorbellTopic, string(msg.Payload()))
 			doorbellService.ProgrammableSwitchEvent.SetValue(characteristic.ProgrammableSwitchEventLongPress)
 			doorbellService.ProgrammableSwitchEvent.UpdateValue(characteristic.ProgrammableSwitchEventSinglePress)
 		})
+	}
 
+	if *motion {
+		var motionService = service.NewMotionSensor()
+		cameraAcc.AddService(motionService.Service)
+
+		client.Subscribe(*motionTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
+			log.Printf("[%s]: %s\n", *motionTopic, string(msg.Payload()))
+			motionService.MotionDetected.Bool.SetValue(string(msg.Payload()) == "ON")
+		})
 	}
 
 	t, err := hc.NewIPTransport(hcConfig, cameraAcc.Accessory)
