@@ -16,6 +16,7 @@ import (
 	"github.com/brutella/hc/rtp"
 	"github.com/brutella/hc/service"
 	"github.com/brutella/hc/tlv8"
+	"github.com/r3labs/diff"
 )
 
 type EncoderProfile int
@@ -218,6 +219,7 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 
 	var ffmpegProcess *exec.Cmd
 	var sessionMap = make(map[string]rtp.SetupEndpoints)
+	var initialStartMap = make(map[string]rtp.StreamConfiguration)
 
 	sm.SelectedRTPStreamConfiguration.OnValueRemoteUpdate(func(value []byte) {
 		var cfg rtp.StreamConfiguration
@@ -251,31 +253,30 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 				ffmpegProcess.Stderr = os.Stderr
 			}
 			err = ffmpegProcess.Start()
+			initialStartMap[string(cfg.Command.Identifier)] = cfg
+
+			log.Printf("start: %+v\n", cfg)
 			break
 		case rtp.SessionControlCommandTypeResume:
-			if isDebugEnabled {
-				log.Println("resume")
-			}
 			err = ffmpegProcess.Process.Signal(syscall.SIGCONT)
+			log.Println("resume")
 			break
 		case rtp.SessionControlCommandTypeReconfigure:
 			if isDebugEnabled {
-				log.Println("reconfigure")
+				changelog, _ := diff.Diff(initialStartMap[string(cfg.Command.Identifier)], cfg)
+				log.Printf("reconfigure: %+v\n", changelog)
 			}
 			break
 		case rtp.SessionControlCommandTypeSuspend:
-			if isDebugEnabled {
-				log.Println("suspend")
-			}
+			log.Println("suspend")
 			err = ffmpegProcess.Process.Signal(syscall.SIGSTOP)
 			break
 		case rtp.SessionControlCommandTypeEnd:
-			if isDebugEnabled {
-				log.Println("end")
-			}
+			log.Println("end")
 			err = ffmpegProcess.Process.Kill()
 
 			delete(sessionMap, string(cfg.Command.Identifier))
+			delete(initialStartMap, string(cfg.Command.Identifier))
 			break
 		}
 
@@ -283,7 +284,6 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 			log.Println(err)
 		}
 
-		log.Printf("SelectedRTPStreamConfiguration: %+v\n", cfg)
 	})
 
 	sm.SetupEndpoints.OnValueUpdateFromConn(func(conn net.Conn, c *characteristic.Characteristic, new, old interface{}) {
