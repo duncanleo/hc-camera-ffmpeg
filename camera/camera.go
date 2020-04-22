@@ -99,8 +99,6 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		streamVideoProfile(streamCfg),
 		"-level:v",
 		streamVideoCodecLevel(streamCfg),
-		"-pix_fmt",
-		"yuv420p",
 		"-vsync",
 		"vfr",
 	)
@@ -189,8 +187,6 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 		"png",
 		"-vframes",
 		"1",
-		"-pix_fmt",
-		"yuv420p",
 		"-vsync",
 		"vfr",
 		"-video_size",
