@@ -18,7 +18,7 @@ func streamVideoCodecLevel(cfg rtp.StreamConfiguration) string {
 	case rtp.VideoCodecLevel3_2:
 		return "3.2"
 	default:
-		return "4.0"
+		return "4"
 	}
 }
 
