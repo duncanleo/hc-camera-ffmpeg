@@ -27,6 +27,10 @@ const (
 	VAAPI
 )
 
+const (
+	protocolWhitelist = "file,udp,tcp,rtp,http"
+)
+
 var (
 	debug          = os.Getenv("DEBUG")
 	isDebugEnabled = debug == "*" || debug == "ffmpeg"
@@ -78,7 +82,7 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		"-f",
 		inputCfg.Format,
 		"-protocol_whitelist",
-		"file,udp,tcp,rtp,http",
+		protocolWhitelist,
 		"-i",
 		inputCfg.Source,
 		"-c:v",
@@ -174,7 +178,7 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 		"-f",
 		inputCfg.Format,
 		"-protocol_whitelist",
-		"file,udp,tcp,rtp,http",
+		protocolWhitelist,
 		"-i",
 		inputCfg.Source,
 		"-c:v",
