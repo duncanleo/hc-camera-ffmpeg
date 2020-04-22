@@ -283,7 +283,7 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 			log.Println(err)
 		}
 
-		log.Printf("%+v\n", cfg)
+		log.Printf("SelectedRTPStreamConfiguration: %+v\n", cfg)
 	})
 
 	sm.SetupEndpoints.OnValueUpdateFromConn(func(conn net.Conn, c *characteristic.Characteristic, new, old interface{}) {
@@ -294,7 +294,7 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 			log.Fatalf("SetupEndpoints: Could not unmarshal tlv8 data: %s\n", err)
 		}
 
-		log.Println("SE", req)
+		log.Printf("SetupEndpoints: %+v\n", req)
 
 		ssrcVideo := int32(1)
 		ssrcAudio := int32(2)
