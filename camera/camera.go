@@ -77,8 +77,6 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		encoderOpts = []string{
 			"-vf",
 			fmt.Sprintf("format=nv12|vaapi,hwupload,scale_vaapi=w=%d:h=-1", streamCfg.Video.Attributes.Width),
-			"-quality",
-			"10",
 			"-bf",
 			"0",
 		}
