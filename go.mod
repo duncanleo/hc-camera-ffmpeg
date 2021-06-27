@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/brutella/hc v1.2.4
-	github.com/eclipse/paho.mqtt.golang v1.2.0
+	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/miekg/dns v1.1.43 // indirect
 	github.com/r3labs/diff v1.1.0
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9 // indirect
