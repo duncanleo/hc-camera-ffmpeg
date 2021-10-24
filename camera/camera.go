@@ -90,6 +90,8 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		inputCfg.Format,
 		"-protocol_whitelist",
 		protocolWhitelist,
+		"-ss",
+		"00:00:01.000",
 		"-i",
 		inputCfg.Source,
 		"-c:v",
