@@ -179,6 +179,8 @@ func generateSnapshotArguments(inputCfg InputConfiguration, width uint) []string
 		"-f",
 		inputCfg.Format,
 		"-protocol_whitelist",
+		"-ss",
+		"00:00:01.000",
 		protocolWhitelist,
 		"-i",
 		inputCfg.Source,
