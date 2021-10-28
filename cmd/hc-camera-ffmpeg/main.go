@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/brutella/hc"
@@ -58,7 +59,8 @@ func main() {
 
 	flag.Parse()
 
-	if *doorbell {
+	if strings.Contains(*name, "\"") {
+		log.Fatalf("Name '%s' cannot contain quotes\n", *name)
 	}
 
 	hcConfig := hc.Config{
