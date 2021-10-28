@@ -57,6 +57,8 @@ func main() {
 	var motion = flag.Bool("motion", false, "whether to enable motion support")
 	var motionTopic = flag.String("motionTopic", "mqtt-publish", "MQTT topic to subscribe to")
 
+	var firmwareRevision = flag.String("firmwareRevision", "0.0.1", "firmware revision")
+
 	flag.Parse()
 
 	if strings.Contains(*name, "\"") {
@@ -73,6 +75,7 @@ func main() {
 		Name:         *name,
 		Manufacturer: *manufacturer,
 		Model:        *model,
+		FirmwareRevision: *firmwareRevision,
 	}
 
 	var encProfile = camera.CPU
