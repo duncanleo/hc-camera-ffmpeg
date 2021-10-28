@@ -4,6 +4,8 @@ import "github.com/brutella/hc/rtp"
 
 func streamVideoProfile(cfg rtp.StreamConfiguration) string {
 	switch cfg.Video.CodecParams.Profiles[0].Id {
+	case rtp.VideoCodecProfileConstrainedBaseline:
+		return "baseline"
 	case rtp.VideoCodecProfileMain:
 		return "main"
 	default:
