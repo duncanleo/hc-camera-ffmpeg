@@ -3,7 +3,7 @@ module github.com/duncanleo/hc-camera-ffmpeg
 go 1.13
 
 require (
-	github.com/brutella/hc v1.2.4
+	github.com/brutella/hc v1.2.5-0.20210809073424-91c89ca209d9
 	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/miekg/dns v1.1.43 // indirect
 	github.com/r3labs/diff v1.1.0
