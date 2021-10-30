@@ -91,9 +91,7 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 	cameraEventRecordingManagementService.SelectedCameraRecordingConfiguration.OnValueRemoteUpdate(func(value []byte) {
 		log.Printf("SelectedCameraRecordingConfiguration OnValueRemoteUpdate %+v\n", value)
 	})
-	cameraEventRecordingManagementService.SelectedCameraRecordingConfiguration.OnValueUpdateFromConn(func(conn net.Conn, c *characteristic.Characteristic, newValue, oldValue interface{}) {
-		log.Printf("SelectedCameraRecordingConfiguration onValueUpdateFromConn %+v %+v\n", newValue, oldValue)
-	})
+
 	cameraEventRecordingManagementService.AddLinkedService(dataStreamManagementService.Service)
 	camera.AddService(cameraEventRecordingManagementService.Service)
 
@@ -148,17 +146,14 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 		hsv.SupportedAudioRecordingConfiguration{
 			CodecConfiguration: []hsv.AudioConfiguration{
 				{
-					Codec: 0, // AAC-LC
+					Codec: hsv.AudioRecordingCodecAAC_LC, // AAC-LC
 					AudioCodecParameters: []hsv.AudioCodecParameters{
 						{
-							Channels: 1,
-							BitrateModes: []uint8{
-								rtp.AudioCodecBitrateConstant,
-								rtp.AudioCodecBitrateVariable,
-							},
+							Channels:     1,
+							BitrateModes: rtp.AudioCodecBitrateConstant,
 							SampleRates: []byte{
-								rtp.AudioCodecSampleRate16Khz,
-								rtp.AudioCodecSampleRate24Khz,
+								// NOTE: Somehow 32Khz is what gets incoming Data Stream requests working
+								hsv.AudioRecordingSampleRate32Khz,
 							},
 						},
 					},

@@ -49,9 +49,9 @@ type VideoCodecParameters struct {
 }
 
 type VideoAttributes struct {
-	ImageWidth  uint32 `tlv8:"1"`
-	ImageHeight uint32 `tlv8:"2"`
-	FrameRate   uint32 `tlv8:"3"`
+	ImageWidth  uint16 `tlv8:"1"`
+	ImageHeight uint16 `tlv8:"2"`
+	FrameRate   uint8  `tlv8:"3"`
 }
 
 type AudioConfiguration struct {
@@ -60,7 +60,7 @@ type AudioConfiguration struct {
 }
 
 type AudioCodecParameters struct {
-	Channels     uint32 `tlv8:"1"`
-	BitrateModes []byte `tlv8:"2"` // 0 (variable), 1 (constant)
+	Channels     uint8  `tlv8:"1"`
+	BitrateModes byte   `tlv8:"2"` // 0 (variable), 1 (constant)
 	SampleRates  []byte `tlv8:"3"`
 }
