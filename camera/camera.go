@@ -5,13 +5,12 @@ import (
 	"image"
 	_ "image/png"
 	"log"
-	"net"
 	"os"
 	"os/exec"
 
 	"github.com/brutella/hc/accessory"
-	"github.com/brutella/hc/characteristic"
 	"github.com/brutella/hc/rtp"
+	"github.com/brutella/hc/tlv8"
 	"github.com/duncanleo/hc-camera-ffmpeg/custom_service"
 	"github.com/duncanleo/hc-camera-ffmpeg/hsv"
 )
@@ -56,30 +55,7 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 		log.Printf("CameraOperatingMode HomeKitCameraActive OnValueRemoteUpdate %+v\n", value)
 	})
 
-	var dataStreamManagementService = custom_service.NewDataStreamTransportManagement()
-
-	setTLV8Payload(
-		dataStreamManagementService.SupportedDataStreamTransportConfiguration.Bytes,
-		hsv.SupportedDataStreamTransportConfiguration{
-			TransferTransportConfigurations: []hsv.TransferTransportConfiguration{
-				{
-					TransportType: 0,
-				},
-			},
-		})
-
-	dataStreamManagementService.SetupDataStreamTransport.OnValueRemoteUpdate(func(v []byte) {
-		log.Printf("SetupDataStreamTransport onValueRemoteUpdate %+v\n", v)
-	})
-
-	dataStreamManagementService.SetupDataStreamTransport.OnValueUpdate(func(c *characteristic.Characteristic, newValue, oldValue interface{}) {
-		log.Printf("SetupDataStreamTransport OnValueUpdate %+v %+v\n", newValue, oldValue)
-	})
-
-	dataStreamManagementService.SetupDataStreamTransport.OnValueUpdateFromConn(func(conn net.Conn, c *characteristic.Characteristic, newValue, oldValue interface{}) {
-		log.Printf("SetupDataStreamTransport OnValueUpdateFromConn %+v %+v\n", newValue, oldValue)
-	})
-
+	var dataStreamManagementService = createDataStreamService()
 	camera.AddService(dataStreamManagementService.Service)
 
 	var cameraEventRecordingManagementService = custom_service.NewCameraEventRecordingManagement()
@@ -89,7 +65,18 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 	})
 
 	cameraEventRecordingManagementService.SelectedCameraRecordingConfiguration.OnValueRemoteUpdate(func(value []byte) {
-		log.Printf("SelectedCameraRecordingConfiguration OnValueRemoteUpdate %+v\n", value)
+
+		var selection hsv.SelectedCameraRecordingConfiguration
+		var err error
+
+		err = tlv8.Unmarshal(value, &selection)
+
+		if err != nil {
+			log.Printf("SelectedCameraRecordingConfiguration OnValueRemoteUpdate Error Decoding=%s\n", err)
+			return
+		}
+
+		log.Printf("SelectedCameraRecordingConfiguration OnValueRemoteUpdate %+v\n", selection)
 	})
 
 	cameraEventRecordingManagementService.AddLinkedService(dataStreamManagementService.Service)

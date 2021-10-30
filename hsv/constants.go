@@ -13,4 +13,8 @@ const (
 	AudioRecordingSampleRate32Khz = 3
 	AudioRecordingSampleRate44Khz = 4
 	AudioRecordingSampleRate48Khz = 5
+
+	SetupDataStreamTransportCommandStart = 0
+
+	TransportTypeHomeKitDataStream = 0
 )

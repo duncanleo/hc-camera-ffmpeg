@@ -64,3 +64,19 @@ type AudioCodecParameters struct {
 	BitrateModes byte   `tlv8:"2"` // 0 (variable), 1 (constant)
 	SampleRates  []byte `tlv8:"3"`
 }
+
+type SetupDataStreamSessionRequest struct {
+	SessionCommandType byte   `tlv8:"1"`
+	TransportType      byte   `tlv8:"2"`
+	ControllerKeySalt  string `tlv8:"3"`
+}
+
+type SetupDataStreamSessionResponse struct {
+	Status                         byte                                  `tlv8:"1"` // 0 (Success), 1 (Generic Error), 2 (Busy, max sessions reached)
+	TransportTypeSessionParameters SetupDataStreamTransportConfiguration `tlv8:"2"`
+	AccessoryKeySalt               string                                `tlv8:"3"`
+}
+
+type SetupDataStreamTransportConfiguration struct {
+	TCPListeningPort uint16 `tlv8:"1"`
+}
