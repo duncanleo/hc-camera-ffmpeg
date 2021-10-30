@@ -3,7 +3,6 @@ module github.com/duncanleo/hc-camera-ffmpeg
 go 1.13
 
 require (
-	github.com/brutella/dnssd v1.2.0 // indirect
 	github.com/brutella/hc v1.2.5-0.20210809073424-91c89ca209d9
 	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/miekg/dns v1.1.43 // indirect
@@ -14,3 +13,5 @@ require (
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
 	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22 // indirect
 )
+
+replace github.com/brutella/hc => github.com/duncanleo/hc v1.2.5-0.20211030163043-7f8edff91fe6
