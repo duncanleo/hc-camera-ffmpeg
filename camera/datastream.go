@@ -3,9 +3,9 @@ package camera
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
 	"log"
 	"net"
-	"time"
 
 	"github.com/brutella/hc/characteristic"
 	"github.com/brutella/hc/tlv8"
@@ -27,9 +27,6 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 		})
 
 	svc.SetupDataStreamTransport.OnValueUpdateFromConn(func(conn net.Conn, c *characteristic.Characteristic, newValue, oldValue interface{}) {
-
-		//var context = *HAPContext
-		//var session = context.GetSessionForConnection(conn)
 		var err error
 
 		var newValueString = newValue.(string)
@@ -45,13 +42,6 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 		}
 
 		log.Printf("SetupDataStreamTransport OnValueUpdateFromConn remoteIP=%+v request=%+v old=%+v\n", conn.RemoteAddr(), request, oldValue)
-
-		log.Println("Receiving packet")
-		var readBox = make([]byte, 4)
-		conn.SetReadDeadline(time.Now().Add(time.Second * 1))
-		count, err := conn.Read(readBox)
-
-		log.Println("[TCP] Nani? Received", count, "bytes")
 
 		var listener net.Listener
 		listener, err = net.Listen("tcp", ":0")
@@ -80,14 +70,43 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 			defer tcpConn.Close()
 
 			for {
-				var box = make([]byte, 4)
-				count, err = tcpConn.Read(box)
+				var count int
+				var err error
+
+				var header = make([]byte, 4)
+
+				count, err = tcpConn.Read(header)
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				log.Println("[TCP] Received", count, box)
+				log.Println("[TCP] Received header", count, header)
+
+				var lengthBytes = header[1:]
+				lengthBytes = append([]byte{0}, lengthBytes...)
+
+				var payloadLength = binary.BigEndian.Uint32(lengthBytes)
+				var payload = make([]byte, payloadLength)
+
+				count, err = tcpConn.Read(payload)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				log.Println("[TCP] Received payload", count, payload)
+
+				var authTag = make([]byte, 16)
+
+				count, err = tcpConn.Read(payload)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				log.Println("[TCP] Received authTag", count, authTag)
+
 			}
 
 		}()
@@ -111,20 +130,8 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 			return
 		}
 
-		// var result = make([]byte, base64.StdEncoding.EncodedLen(len(encoded)))
+		c.WriteResponse = encoded
 
-		// base64.StdEncoding.Encode(result, encoded)
-
-		count, err = conn.Write(encoded)
-
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		log.Println("Wrote", count, "bytes")
-
-		//setTLV8Payload(svc.SetupDataStreamTransport.Bytes, response)
 	})
 
 	return svc
