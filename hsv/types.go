@@ -68,13 +68,13 @@ type AudioCodecParameters struct {
 type SetupDataStreamSessionRequest struct {
 	SessionCommandType byte   `tlv8:"1"`
 	TransportType      byte   `tlv8:"2"`
-	ControllerKeySalt  string `tlv8:"3"`
+	ControllerKeySalt  []byte `tlv8:"3"`
 }
 
 type SetupDataStreamSessionResponse struct {
 	Status                         byte                                  `tlv8:"1"` // 0 (Success), 1 (Generic Error), 2 (Busy, max sessions reached)
 	TransportTypeSessionParameters SetupDataStreamTransportConfiguration `tlv8:"2"`
-	AccessoryKeySalt               string                                `tlv8:"3"`
+	AccessoryKeySalt               []byte                                `tlv8:"3"`
 }
 
 type SetupDataStreamTransportConfiguration struct {

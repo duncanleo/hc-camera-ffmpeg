@@ -16,5 +16,9 @@ const (
 
 	SetupDataStreamTransportCommandStart = 0
 
+	SetupDataStreamTransportStatusSuccess      = 0
+	SetupDataStreamTransportStatusGenericError = 0
+	SetupDataStreamTransportStatusBusy         = 0
+
 	TransportTypeHomeKitDataStream = 0
 )

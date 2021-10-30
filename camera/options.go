@@ -47,7 +47,8 @@ func streamAudioSampleRate(cfg rtp.StreamConfiguration) int {
 func streamAudioCodec(cfg rtp.StreamConfiguration) string {
 	switch cfg.Audio.CodecType {
 	case rtp.AudioCodecType_AAC_ELD:
-		return "libfdk_aac"
+		return "aac"
+		//return "libfdk_aac"
 	case rtp.AudioCodecType_Opus:
 		return "libopus"
 	default:
