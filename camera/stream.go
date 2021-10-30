@@ -21,6 +21,9 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 	var active = characteristic.NewActive()
 	active.SetValue(1)
 	sm.AddCharacteristic(active.Characteristic)
+	active.OnValueRemoteUpdate(func(value int) {
+		log.Printf("CameraRTPStreamManagement Active OnValueRemoteUpdate %+v\n", value)
+	})
 
 	var supportedCodecs = []rtp.AudioCodecConfiguration{
 		rtp.NewOpusAudioCodecConfiguration(),

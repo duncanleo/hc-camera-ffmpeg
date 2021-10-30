@@ -17,7 +17,7 @@ func NewHomeKitCameraActive() *HomeKitCameraActive {
 	char.MinValue = 0
 	char.MaxValue = 1
 
-	char.SetValue(1)
+	char.SetValue(0)
 
 	return &HomeKitCameraActive{char}
 }

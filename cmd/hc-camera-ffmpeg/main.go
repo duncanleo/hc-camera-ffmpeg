@@ -5,15 +5,23 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/brutella/hc"
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/characteristic"
+	hcLog "github.com/brutella/hc/log"
 	"github.com/brutella/hc/service"
 	"github.com/duncanleo/hc-camera-ffmpeg/camera"
+	"github.com/duncanleo/hc-camera-ffmpeg/custom_service"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+)
+
+var (
+	debug          = os.Getenv("DEBUG")
+	isDebugEnabled = debug == "*" || debug == "ffmpeg"
 )
 
 func connect(clientID string, uri *url.URL) (mqtt.Client, error) {
@@ -72,9 +80,9 @@ func main() {
 	}
 
 	cameraInfo := accessory.Info{
-		Name:         *name,
-		Manufacturer: *manufacturer,
-		Model:        *model,
+		Name:             *name,
+		Manufacturer:     *manufacturer,
+		Model:            *model,
 		FirmwareRevision: *firmwareRevision,
 	}
 
@@ -127,12 +135,27 @@ func main() {
 
 	if *motion {
 		var motionService = service.NewMotionSensor()
+		var motionServiceActive = characteristic.NewActive()
+		motionServiceActive.SetValue(1)
+		motionService.AddCharacteristic(motionServiceActive.Characteristic)
 		cameraAcc.AddService(motionService.Service)
+
+		for _, svc := range cameraAcc.GetServices() {
+			if svc.Type == custom_service.TypeCameraEventRecordingManagement {
+				svc.AddLinkedService(motionService.Service)
+			}
+		}
 
 		client.Subscribe(*motionTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
 			log.Printf("[%s]: %s\n", *motionTopic, string(msg.Payload()))
 			motionService.MotionDetected.Bool.SetValue(string(msg.Payload()) == "ON")
 		})
+	}
+
+	hcLog.Info.Enable()
+
+	if isDebugEnabled {
+		hcLog.Debug.Enable()
 	}
 
 	t, err := hc.NewIPTransport(hcConfig, cameraAcc.Accessory)
