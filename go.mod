@@ -14,4 +14,4 @@ require (
 	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22 // indirect
 )
 
-replace github.com/brutella/hc => github.com/duncanleo/hc v1.2.5-0.20211030163043-7f8edff91fe6
+replace github.com/brutella/hc => github.com/duncanleo/hc v1.2.5-0.20211030174845-c4f1debff370
