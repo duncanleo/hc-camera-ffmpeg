@@ -55,6 +55,15 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 		var accessoryKeySalt = make([]byte, 32)
 		rand.Read(accessoryKeySalt)
 
+		var pairVerifyHandler = session.PairVerifyHandler()
+		var sharedKey = pairVerifyHandler.SharedKey()
+
+		sess, err := hds.NewHDSSession(request.ControllerKeySalt, accessoryKeySalt, sharedKey)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
 		var listener net.Listener
 		listener, err = net.Listen("tcp", ":0")
 
@@ -68,10 +77,10 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 		go func() {
 			defer listener.Close()
 			defer func() {
-				log.Println("Ended TCP listener at", listenerAddress)
+				log.Println("[TCP] Ended TCP listener at", listenerAddress)
 			}()
 
-			log.Println("Started TCP listener at", listenerAddress)
+			log.Println("[TCP] Started TCP listener at", listenerAddress)
 
 			tcpConn, err := listener.Accept()
 			if err != nil {
@@ -82,73 +91,102 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 			defer tcpConn.Close()
 
 			for {
-				var count int
 				var err error
 
-				var header = make([]byte, 4)
-
-				count, err = tcpConn.Read(header)
+				frame, err := hds.NewFrame(tcpConn)
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				log.Println("[TCP] Received header", count, header)
+				log.Printf("[TCP] Recv frame %+v\n", frame)
 
-				var lengthBytes = header[1:]
-				lengthBytes = append([]byte{0}, lengthBytes...)
-
-				var payloadLength = binary.BigEndian.Uint32(lengthBytes)
-				var payload = make([]byte, payloadLength)
-
-				count, err = tcpConn.Read(payload)
+				decrypted, err := sess.Decrypt(frame.Payload, frame.AuthTag, frame.Header[:])
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				log.Println("[TCP] Received payload", count, payload)
-
-				var authTag = make([]byte, 16)
-
-				count, err = tcpConn.Read(authTag)
+				hdsPayload, err := hds.NewPayload(decrypted)
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				log.Println("[TCP] Received authTag", count, authTag)
-
-				var pairVerifyHandler = session.PairVerifyHandler()
-				var sharedKey = pairVerifyHandler.SharedKey()
-
-				var mac [16]byte
-				copy(mac[:], authTag)
-
-				sess, err := hds.NewHDSSession(request.ControllerKeySalt, accessoryKeySalt, sharedKey)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				decrypted, err := sess.Decrypt(payload, mac, header)
+				decodedHeader, err := hdsPayload.DecodedHeader()
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				log.Println("DECRYPTION", decrypted, err, len(decrypted))
+				decodedMessage, err := hdsPayload.DecodedMessage()
+				if err != nil {
+					log.Println(err)
+					return
+				}
 
-				var headerLen = int(decrypted[0])
-				var payloadHeader = decrypted[1 : headerLen+1]
-				var payloadMessage = decrypted[1+headerLen:]
+				var decodedHeaderMap = decodedHeader.(map[string]interface{})
+				var protocol = decodedHeaderMap["protocol"]
 
-				log.Println("headerLen", headerLen)
+				log.Printf("[HDS] New message with protocol=%s: %+v\n", protocol, decodedMessage)
 
-				log.Println("Payload header", payloadHeader, "Payload message", payloadMessage)
-				log.Println("Payload header", string(payloadHeader), "Payload message", string(payloadMessage))
+				switch protocol {
+				case "control":
 
-				for i := 0; i < len(payloadHeader); i++ {
-					log.Printf("Process header byte %4d %1s\n", payloadHeader[i], string(payloadHeader[i]))
+					switch decodedHeaderMap["request"] {
+					case "hello":
+						log.Println("[HDS] Received HELLO!")
+
+						// Respond with the same hello message
+						var respPayloadHeader = map[string]interface{}{
+							"protocol": "control",
+							"response": "hello",
+							"id":       decodedHeaderMap["id"],
+							"status":   hds.StatusSuccess,
+						}
+
+						encodedHeader, err := hds.EncodeDataFormat(respPayloadHeader)
+						if err != nil {
+							log.Println(err)
+							return
+						}
+
+						var respPayloadMessage = map[string]interface{}{}
+
+						encodedMessage, err := hds.EncodeDataFormat(respPayloadMessage)
+						if err != nil {
+							log.Println(err)
+							return
+						}
+
+						var respPayload []byte
+						var encodedHeaderLen = len(encodedHeader)
+
+						respPayload = append(respPayload, byte(encodedHeaderLen))
+						respPayload = append(respPayload, encodedHeader...)
+						respPayload = append(respPayload, encodedMessage...)
+
+						var respPayloadLen = len(respPayload)
+
+						var newHeader = make([]byte, 4)
+						binary.BigEndian.PutUint32(newHeader, uint32(respPayloadLen))
+						newHeader[0] = 0x01
+
+						encrypted, mac, err := sess.Encrypt(respPayload, newHeader)
+						if err != nil {
+							log.Println(err)
+							return
+						}
+
+						var packet []byte
+						packet = append(packet, newHeader...)
+						packet = append(packet, encrypted...)
+						packet = append(packet, mac[:]...)
+
+						log.Println("[TCP] Writing HELLO response")
+
+						tcpConn.Write(packet)
+					}
 				}
 			}
 
