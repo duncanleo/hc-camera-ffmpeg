@@ -51,7 +51,7 @@ func DecodeDataFormat(r *bytes.Buffer) (interface{}, error) {
 	} else if tag >= IntegerStart && tag <= IntegerEnd {
 		var value = tag - IntegerStart
 
-		return value, nil
+		return int(value), nil
 	} else if tag == IntegerThirtyNine {
 		return 39, nil
 	} else if tag == SignedInt16LE {

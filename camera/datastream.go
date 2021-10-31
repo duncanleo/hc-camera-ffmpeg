@@ -113,15 +113,16 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 				}
 
 				var protocol = hdsPayload.Header["protocol"]
+				var request = hdsPayload.Header["request"]
 
-				log.Printf("[HDS] New message with protocol=%s: %+v\n", protocol, hdsPayload.Message)
+				log.Printf("[HDS] New message with protocol=%s header=%+v message=%+v\n", protocol, hdsPayload.Header, hdsPayload.Message)
 
 				switch protocol {
 				case "control":
+					log.Printf("[HDS] Received control with request=%s\n", request)
 
-					switch hdsPayload.Header["request"] {
+					switch request {
 					case "hello":
-						log.Println("[HDS] Received HELLO!")
 
 						var payload = hds.Payload{
 							Header: map[string]interface{}{
@@ -148,6 +149,48 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 						log.Println("[TCP] Writing HELLO response")
 
 						tcpConn.Write(newFrame.Assemble())
+					}
+				case "dataSend":
+					var message = hdsPayload.Message.(map[string]interface{})
+					var dataSendType = message["type"]
+					log.Printf("[HDS] Received dataSend with type=%s\n", dataSendType)
+
+					switch request {
+					case "open":
+						switch dataSendType {
+						case "ipcamera.recording":
+							var payload = hds.Payload{
+								Header: map[string]interface{}{
+									"protocol": "dataSend",
+									"id":       hdsPayload.Header["id"],
+									"response": "open",
+									"status":   hds.StatusSuccess,
+								},
+								Message: map[string]interface{}{
+									"status": hds.StatusSuccess,
+								},
+							}
+
+							encodedPayload, err := payload.Encode()
+							if err != nil {
+								log.Println(err)
+								return
+							}
+
+							newFrame, err := hds.NewFrameFromPayloadAndSession(encodedPayload, &sess)
+							if err != nil {
+								log.Println(err)
+								return
+							}
+
+							tcpConn.Write(newFrame.Assemble())
+
+							log.Println("[TCP] Writing dataSend response")
+
+							// TODO: Start sending MP4 fragments
+						}
+					case "close":
+						// TODO: Handle close
 					}
 				}
 			}
