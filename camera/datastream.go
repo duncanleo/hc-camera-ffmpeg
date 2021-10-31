@@ -8,72 +8,16 @@ import (
 	"net"
 
 	"github.com/brutella/hc/characteristic"
-	"github.com/brutella/hc/crypto/chacha20poly1305"
-	"github.com/brutella/hc/crypto/hkdf"
 	"github.com/brutella/hc/hap"
 	"github.com/brutella/hc/tlv8"
 	"github.com/duncanleo/hc-camera-ffmpeg/custom_service"
+	"github.com/duncanleo/hc-camera-ffmpeg/hds"
 	"github.com/duncanleo/hc-camera-ffmpeg/hsv"
 )
 
 var (
 	HAPContext *hap.Context
 )
-
-type HDSSession struct {
-	encryptKey [32]byte
-	decryptKey [32]byte
-
-	encryptCount uint64
-	decryptCount uint64
-}
-
-func newHDSSession(controllerKeySalt []byte, accessoryKeySalt []byte, sharedKey [32]byte) (HDSSession, error) {
-	var salt []byte
-	salt = append(salt, controllerKeySalt...)
-	salt = append(salt, accessoryKeySalt...)
-
-	var accessoryToControllerInfo = []byte("HDS-Read-Encryption-Key")
-	var controllerToAccessoryInfo = []byte("HDS-Write-Encryption-Key")
-
-	var sess HDSSession
-
-	encryptKey, err := hkdf.Sha512(sharedKey[:], salt, accessoryToControllerInfo)
-	if err != nil {
-		return sess, err
-	}
-
-	sess.encryptKey = encryptKey
-	sess.encryptCount = 0
-
-	decryptKey, err := hkdf.Sha512(sharedKey[:], salt, controllerToAccessoryInfo)
-	if err != nil {
-		return sess, err
-	}
-
-	sess.decryptKey = decryptKey
-	sess.decryptCount = 0
-
-	return sess, nil
-}
-
-func (h *HDSSession) encrypt(payload []byte, aad []byte) ([]byte, [16]byte, error) {
-	var nonce [8]byte
-	binary.LittleEndian.PutUint64(nonce[:], h.encryptCount)
-
-	h.encryptCount++
-
-	return chacha20poly1305.EncryptAndSeal(h.encryptKey[:], nonce[:], payload, aad)
-}
-
-func (h *HDSSession) decrypt(payload []byte, mac [16]byte, aad []byte) ([]byte, error) {
-	var nonce [8]byte
-	binary.LittleEndian.PutUint64(nonce[:], h.decryptCount)
-
-	h.decryptCount++
-
-	return chacha20poly1305.DecryptAndVerify(h.decryptKey[:], nonce[:], payload, mac, aad)
-}
 
 func createDataStreamService() *custom_service.DataStreamTransportManagement {
 	var svc = custom_service.NewDataStreamTransportManagement()
@@ -181,14 +125,31 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 				var mac [16]byte
 				copy(mac[:], authTag)
 
-				sess, err := newHDSSession(request.ControllerKeySalt, accessoryKeySalt, sharedKey)
+				sess, err := hds.NewHDSSession(request.ControllerKeySalt, accessoryKeySalt, sharedKey)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				decrypted, err := sess.decrypt(payload, mac, header)
+				decrypted, err := sess.Decrypt(payload, mac, header)
+				if err != nil {
+					log.Println(err)
+					return
+				}
 
-				log.Println("DECRYPTION", decrypted, err)
+				log.Println("DECRYPTION", decrypted, err, len(decrypted))
+
+				var headerLen = int(decrypted[0])
+				var payloadHeader = decrypted[1 : headerLen+1]
+				var payloadMessage = decrypted[1+headerLen:]
+
+				log.Println("headerLen", headerLen)
+
+				log.Println("Payload header", payloadHeader, "Payload message", payloadMessage)
+				log.Println("Payload header", string(payloadHeader), "Payload message", string(payloadMessage))
+
+				for i := 0; i < len(payloadHeader); i++ {
+					log.Printf("Process header byte %4d %1s\n", payloadHeader[i], string(payloadHeader[i]))
+				}
 			}
 
 		}()
