@@ -11,7 +11,17 @@ type Frame struct {
 	AuthTag [16]byte
 }
 
-func NewFrame(r io.Reader) (Frame, error) {
+func (f Frame) Assemble() []byte {
+	var frame []byte
+
+	frame = append(frame, f.Header[:]...)
+	frame = append(frame, f.Payload...)
+	frame = append(frame, f.AuthTag[:]...)
+
+	return frame
+}
+
+func NewFrameFromReader(r io.Reader) (Frame, error) {
 	var p Frame
 
 	var err error
@@ -34,4 +44,27 @@ func NewFrame(r io.Reader) (Frame, error) {
 
 	_, err = r.Read(p.AuthTag[:])
 	return p, err
+}
+
+func NewFrameFromPayloadAndSession(payload []byte, sess *HDSSession) (Frame, error) {
+	var f Frame
+	var payloadLen = len(payload)
+
+	var header = make([]byte, 4)
+	binary.BigEndian.PutUint32(header, uint32(payloadLen))
+	header[0] = 0x01
+
+	encrypted, mac, err := sess.Encrypt(payload, header)
+	if err != nil {
+		return f, err
+	}
+
+	var headerFixed [4]byte
+	copy(headerFixed[:], header)
+
+	f.Header = headerFixed
+	f.Payload = encrypted
+	f.AuthTag = mac
+
+	return f, nil
 }

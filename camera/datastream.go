@@ -3,7 +3,6 @@ package camera
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/binary"
 	"log"
 	"net"
 
@@ -93,13 +92,13 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 			for {
 				var err error
 
-				frame, err := hds.NewFrame(tcpConn)
+				frame, err := hds.NewFrameFromReader(tcpConn)
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				log.Printf("[TCP] Recv frame %+v\n", frame)
+				log.Printf("[TCP] Recv frame with %d-byte payload\n", len(frame.Payload))
 
 				decrypted, err := sess.Decrypt(frame.Payload, frame.AuthTag, frame.Header[:])
 				if err != nil {
@@ -107,85 +106,48 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 					return
 				}
 
-				hdsPayload, err := hds.NewPayload(decrypted)
+				hdsPayload, err := hds.NewPayloadFromRaw(decrypted)
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				decodedHeader, err := hdsPayload.DecodedHeader()
-				if err != nil {
-					log.Println(err)
-					return
-				}
+				var protocol = hdsPayload.Header["protocol"]
 
-				decodedMessage, err := hdsPayload.DecodedMessage()
-				if err != nil {
-					log.Println(err)
-					return
-				}
-
-				var decodedHeaderMap = decodedHeader.(map[string]interface{})
-				var protocol = decodedHeaderMap["protocol"]
-
-				log.Printf("[HDS] New message with protocol=%s: %+v\n", protocol, decodedMessage)
+				log.Printf("[HDS] New message with protocol=%s: %+v\n", protocol, hdsPayload.Message)
 
 				switch protocol {
 				case "control":
 
-					switch decodedHeaderMap["request"] {
+					switch hdsPayload.Header["request"] {
 					case "hello":
 						log.Println("[HDS] Received HELLO!")
 
-						// Respond with the same hello message
-						var respPayloadHeader = map[string]interface{}{
-							"protocol": "control",
-							"response": "hello",
-							"id":       decodedHeaderMap["id"],
-							"status":   hds.StatusSuccess,
+						var payload = hds.Payload{
+							Header: map[string]interface{}{
+								"protocol": "control",
+								"response": "hello",
+								"id":       hdsPayload.Header["id"],
+								"status":   hds.StatusSuccess,
+							},
+							Message: map[string]interface{}{},
 						}
 
-						encodedHeader, err := hds.EncodeDataFormat(respPayloadHeader)
+						encodedPayload, err := payload.Encode()
 						if err != nil {
 							log.Println(err)
 							return
 						}
 
-						var respPayloadMessage = map[string]interface{}{}
-
-						encodedMessage, err := hds.EncodeDataFormat(respPayloadMessage)
+						newFrame, err := hds.NewFrameFromPayloadAndSession(encodedPayload, &sess)
 						if err != nil {
 							log.Println(err)
 							return
 						}
-
-						var respPayload []byte
-						var encodedHeaderLen = len(encodedHeader)
-
-						respPayload = append(respPayload, byte(encodedHeaderLen))
-						respPayload = append(respPayload, encodedHeader...)
-						respPayload = append(respPayload, encodedMessage...)
-
-						var respPayloadLen = len(respPayload)
-
-						var newHeader = make([]byte, 4)
-						binary.BigEndian.PutUint32(newHeader, uint32(respPayloadLen))
-						newHeader[0] = 0x01
-
-						encrypted, mac, err := sess.Encrypt(respPayload, newHeader)
-						if err != nil {
-							log.Println(err)
-							return
-						}
-
-						var packet []byte
-						packet = append(packet, newHeader...)
-						packet = append(packet, encrypted...)
-						packet = append(packet, mac[:]...)
 
 						log.Println("[TCP] Writing HELLO response")
 
-						tcpConn.Write(packet)
+						tcpConn.Write(newFrame.Assemble())
 					}
 				}
 			}
@@ -200,7 +162,7 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 			AccessoryKeySalt: accessoryKeySalt,
 		}
 
-		log.Printf("Writing response %+v\n", response)
+		log.Printf("[HC] Setting Write Response %+v\n", response)
 
 		encoded, err := tlv8.Marshal(response)
 		if err != nil {
