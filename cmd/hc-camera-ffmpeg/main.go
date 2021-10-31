@@ -164,6 +164,7 @@ func main() {
 	}
 
 	t.CameraSnapshotReq = snapshotFunc
+	camera.HAPContext = &t.Context
 
 	hc.OnTermination(func() {
 		<-t.Stop()
