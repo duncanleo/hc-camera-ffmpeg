@@ -28,6 +28,11 @@ const (
 	DataStart = 0x70
 	DataEnd   = 0x90
 
+	DataSmall      = 0x91
+	DataMedium     = 0x92
+	DataLarge      = 0x93
+	DataExtraLarge = 0x94
+
 	ArrayStart = 0xD0
 	ArrayEnd   = 0xDF
 
@@ -151,6 +156,75 @@ func DecodeDataFormat(r *bytes.Buffer) (interface{}, error) {
 		}
 
 		return result, nil
+	} else if tag == DataSmall {
+		length, err := r.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+
+		var result = make([]byte, length)
+
+		_, err = r.Read(result)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	} else if tag == DataMedium {
+		var lengthBytes = make([]byte, 2)
+
+		_, err = r.Read(lengthBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		var length = binary.LittleEndian.Uint16(lengthBytes)
+
+		var result = make([]byte, length)
+
+		_, err = r.Read(result)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
+	} else if tag == DataLarge {
+		var lengthBytes = make([]byte, 4)
+
+		_, err = r.Read(lengthBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		var length = binary.LittleEndian.Uint32(lengthBytes)
+
+		var result = make([]byte, length)
+
+		_, err = r.Read(result)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	} else if tag == DataExtraLarge {
+		var lengthBytes = make([]byte, 8)
+
+		_, err = r.Read(lengthBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		var length = binary.LittleEndian.Uint64(lengthBytes)
+
+		var result = make([]byte, length)
+
+		_, err = r.Read(result)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
 
 	} else if tag >= ArrayStart && tag <= ArrayEnd {
 		var length = int(tag - ArrayStart)
@@ -198,6 +272,13 @@ func EncodeDataFormat(rawData interface{}) ([]byte, error) {
 	var result = bytes.NewBuffer(make([]byte, 0))
 
 	switch rawData.(type) {
+	case bool:
+		var data = rawData.(bool)
+		if data {
+			result.WriteByte(BooleanTrue)
+		} else {
+			result.WriteByte(BooleanFalse)
+		}
 	case string:
 		var data = rawData.(string)
 		var length = len(data)
@@ -251,6 +332,62 @@ func EncodeDataFormat(rawData interface{}) ([]byte, error) {
 
 		result.WriteByte(SignedInt64LE)
 		result.Write(w.Bytes())
+	case []byte:
+		var data = rawData.([]byte)
+
+		var size = len(data)
+
+		if size > 255 {
+			// uint16
+			var lengthBytes = make([]byte, 2)
+
+			binary.LittleEndian.PutUint16(lengthBytes, uint16(size))
+
+			result.WriteByte(DataMedium)
+			result.Write(lengthBytes)
+			result.Write(data)
+		} else if size > 65535 {
+			// uint32
+			var lengthBytes = make([]byte, 4)
+
+			binary.LittleEndian.PutUint32(lengthBytes, uint32(size))
+
+			result.WriteByte(DataMedium)
+			result.Write(lengthBytes)
+			result.Write(data)
+		} else if size > 4294967295 {
+			// uint64
+			var lengthBytes = make([]byte, 2)
+
+			binary.LittleEndian.PutUint64(lengthBytes, uint64(size))
+
+			result.WriteByte(DataMedium)
+			result.Write(lengthBytes)
+			result.Write(data)
+		} else {
+			// uint8
+
+			result.WriteByte(DataSmall)
+			result.WriteByte(byte(size))
+			result.Write(data)
+		}
+
+	case []interface{}:
+		var data = rawData.([]interface{})
+		var size = len(data)
+
+		result.WriteByte(byte(ArrayStart + size))
+
+		for _, item := range data {
+			itemBytes, err := EncodeDataFormat(item)
+
+			if err != nil {
+				return nil, err
+			}
+
+			result.Write(itemBytes)
+		}
+
 	case map[string]interface{}:
 		var data = rawData.(map[string]interface{})
 

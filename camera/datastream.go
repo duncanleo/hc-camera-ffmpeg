@@ -1,10 +1,14 @@
 package camera
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
+	"io"
 	"log"
 	"net"
+	"os/exec"
 
 	"github.com/brutella/hc/characteristic"
 	"github.com/brutella/hc/hap"
@@ -15,10 +19,13 @@ import (
 )
 
 var (
-	HAPContext *hap.Context
+	HAPContext                           *hap.Context
+	SelectedCameraRecordingConfiguration *hsv.SelectedCameraRecordingConfiguration
+
+	sessionMap = make(map[string]*exec.Cmd)
 )
 
-func createDataStreamService() *custom_service.DataStreamTransportManagement {
+func createDataStreamService(inputCfg InputConfiguration, encoderProfile EncoderProfile) *custom_service.DataStreamTransportManagement {
 	var svc = custom_service.NewDataStreamTransportManagement()
 
 	setTLV8Payload(
@@ -114,6 +121,7 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 
 				var protocol = hdsPayload.Header["protocol"]
 				var request = hdsPayload.Header["request"]
+				var event = hdsPayload.Header["event"]
 
 				log.Printf("[HDS] New message with protocol=%s header=%+v message=%+v\n", protocol, hdsPayload.Header, hdsPayload.Message)
 
@@ -187,10 +195,190 @@ func createDataStreamService() *custom_service.DataStreamTransportManagement {
 
 							log.Println("[TCP] Writing dataSend response")
 
+							if SelectedCameraRecordingConfiguration == nil {
+								log.Println("[HKSV] SelectedCameraRecordingConfiguration not written, cannot begin encoding")
+								return
+							}
+
 							// TODO: Start sending MP4 fragments
+							var args = generateHKSVArguments(inputCfg, encoderProfile, *SelectedCameraRecordingConfiguration)
+							var ffmpegProcess = exec.Command(
+								"ffmpeg",
+								args...,
+							)
+							log.Println(ffmpegProcess.String())
+							//		ffmpegProcess.Stderr = os.Stdout
+							ffmpegOut, err := ffmpegProcess.StdoutPipe()
+							if err != nil {
+								log.Println(err)
+								return
+							}
+
+							ffmpegOutBuffer := bufio.NewReaderSize(ffmpegOut, 1000000)
+
+							go func() {
+								if ffmpegProcess.ProcessState != nil && ffmpegProcess.ProcessState.Exited() {
+									return
+								}
+
+								var dataSequenceNumber = 1
+								var dataChunkSequenceNumber = 1
+								var fragmentTotal = (4000000/100000)/2 - 1
+								var collectedChunkTypes []string
+								var collectedChunks = make([]byte, 0)
+
+								for {
+									log.Println("[FFMPEG HKSV] Waiting for data. Buffer size=", ffmpegOutBuffer.Buffered())
+
+									var chunkHeader = make([]byte, 8)
+									_, err = io.ReadFull(ffmpegOutBuffer, chunkHeader)
+									if err != nil {
+										log.Println(err)
+										return
+									}
+
+									log.Println("[FFMPEG HKSV] Read chunk header", chunkHeader)
+
+									var chunkTypeBytes = chunkHeader[4:]
+									var chunkType = string(chunkTypeBytes)
+
+									var prependChunkData = make([]byte, 0)
+
+									if chunkType == "ftyp" {
+										// Must read the sub-type as well
+										prependChunkData = make([]byte, 4)
+
+										_, err = io.ReadFull(ffmpegOutBuffer, prependChunkData)
+										if err != nil {
+											log.Println(err)
+											return
+										}
+
+										log.Println("[FFMPEG HKSV] Read chunk sub-type", string(prependChunkData))
+									}
+
+									var chunkSizeBytes = chunkHeader[0:4]
+									var chunkSize = binary.BigEndian.Uint32(chunkSizeBytes) - uint32(len(chunkHeader)) - uint32(len(prependChunkData))
+
+									log.Printf("[FFMPEG HKSV] Chunk type=%s size=%d", chunkType, chunkSize)
+
+									// Sanity check
+									switch chunkType {
+									case "ftyp", "mdat", "moov", "pnot", "udta", "uuid", "moof", "free", "skip", "jP2 ", "wide", "load", "ctab", "imap", "matt", "kmat", "clip", "crgn", "sync", "chap", "tmcd", "scpt", "ssrc", "PICT":
+									default:
+										log.Println("[FFMPEG HKSV] Unknown chunk type", chunkType, "discarding")
+										discardCount, err := ffmpegOutBuffer.Discard(int(chunkSize))
+										if err != nil {
+											log.Println(err)
+											return
+										}
+										log.Println("[FFMPEG HKSV] Discarded", discardCount, "bytes")
+										continue
+									}
+
+									collectedChunkTypes = append(collectedChunkTypes, chunkType)
+
+									var chunkData = make([]byte, chunkSize)
+									_, err = io.ReadFull(ffmpegOutBuffer, chunkData)
+									if err != nil {
+										log.Println(err)
+										return
+									}
+
+									collectedChunks = append(collectedChunks, chunkHeader...)
+									collectedChunks = append(collectedChunks, prependChunkData...)
+									collectedChunks = append(collectedChunks, chunkData...)
+
+									var isInitChunk = collectedChunkTypes[0] == "ftyp"
+
+									if len(collectedChunkTypes) == 2 && (isInitChunk || dataChunkSequenceNumber <= fragmentTotal) {
+
+										// Time to flush
+										var dataType = "mediaFragment"
+
+										if isInitChunk {
+											dataType = "mediaInitialization"
+										}
+
+										var isLastDataChunk = isInitChunk || dataChunkSequenceNumber == fragmentTotal
+
+										var payload = hds.Payload{
+											Header: map[string]interface{}{
+												"protocol": "dataSend",
+												"event":    "data",
+											},
+											Message: map[string]interface{}{
+												"status":   hds.StatusSuccess,
+												"streamId": message["streamId"],
+												"packets": []interface{}{
+													map[string]interface{}{
+														"data": collectedChunks,
+														"metadata": map[string]interface{}{
+															"dataType":                dataType,
+															"dataSequenceNumber":      dataSequenceNumber,
+															"dataChunkSequenceNumber": dataChunkSequenceNumber,
+															"isLastDataChunk":         isLastDataChunk,
+														},
+													},
+												},
+											},
+										}
+
+										log.Printf("[FFMPEG HKSV] Flushing chunks %+v dataType=%s dataSequenceNumber=%d dataChunkSequenceNumber=%d fragmentTotal=%d isLastDataChunk=%+v\n", collectedChunkTypes, dataType, dataSequenceNumber, dataChunkSequenceNumber, fragmentTotal, isLastDataChunk)
+
+										encodedPayload, err := payload.Encode()
+										if err != nil {
+											log.Println(err)
+											return
+										}
+
+										newFrame, err := hds.NewFrameFromPayloadAndSession(encodedPayload, &sess)
+										if err != nil {
+											log.Println(err)
+											return
+										}
+
+										tcpConn.Write(newFrame.Assemble())
+
+										dataChunkSequenceNumber++
+										collectedChunkTypes = make([]string, 0)
+										collectedChunks = make([]byte, 0)
+
+										if isLastDataChunk {
+											dataSequenceNumber++
+											dataChunkSequenceNumber = 1
+										}
+									}
+
+								}
+							}()
+
+							err = ffmpegProcess.Start()
+							if err != nil {
+								log.Println(err)
+								return
+							}
+
+							log.Println("[FFMPEG HKSV] Spawn PID", ffmpegProcess.Process.Pid)
+
+							defer func() {
+								if ffmpegProcess.ProcessState != nil && !ffmpegProcess.ProcessState.Exited() {
+									log.Println("[FFMPEG HKSV] Terminating PID", ffmpegProcess.Process.Pid)
+									ffmpegProcess.Process.Kill()
+								}
+							}()
+
+							sessionMap[tcpConn.RemoteAddr().String()] = ffmpegProcess
 						}
+					}
+
+					switch event {
 					case "close":
 						// TODO: Handle close
+						if ffmpegProcess, ok := sessionMap[tcpConn.RemoteAddr().String()]; ok {
+							log.Println("[FFMPEG HKSV] Terminating PID", ffmpegProcess.Process.Pid)
+							ffmpegProcess.Process.Kill()
+						}
 					}
 				}
 			}

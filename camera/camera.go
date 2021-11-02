@@ -55,7 +55,7 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 		log.Printf("CameraOperatingMode HomeKitCameraActive OnValueRemoteUpdate %+v\n", value)
 	})
 
-	var dataStreamManagementService = createDataStreamService()
+	var dataStreamManagementService = createDataStreamService(inputCfg, encoderProfile)
 	camera.AddService(dataStreamManagementService.Service)
 
 	var cameraEventRecordingManagementService = custom_service.NewCameraEventRecordingManagement()
@@ -75,6 +75,8 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 			log.Printf("SelectedCameraRecordingConfiguration OnValueRemoteUpdate Error Decoding=%s\n", err)
 			return
 		}
+
+		SelectedCameraRecordingConfiguration = &selection
 
 		log.Printf("SelectedCameraRecordingConfiguration OnValueRemoteUpdate %+v\n", selection)
 	})
