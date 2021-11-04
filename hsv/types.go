@@ -44,8 +44,10 @@ type VideoConfiguration struct {
 }
 
 type VideoCodecParameters struct {
-	ProfileID byte `tlv8:"1"` // 0 (baseline), 1 (main), 2 (high)
-	Level     byte `tlv8:"2"` // 0 (3.1), 1 (3.2), 2 (4)
+	ProfileID      byte   `tlv8:"1"` // 0 (baseline), 1 (main), 2 (high)
+	Level          byte   `tlv8:"2"` // 0 (3.1), 1 (3.2), 2 (4)
+	Bitrate        uint32 `tlv8:"3"`
+	IFrameInterval uint32 `tlv8:"4"`
 }
 
 type VideoAttributes struct {
@@ -60,9 +62,10 @@ type AudioConfiguration struct {
 }
 
 type AudioCodecParameters struct {
-	Channels     uint8  `tlv8:"1"`
-	BitrateModes byte   `tlv8:"2"` // 0 (variable), 1 (constant)
-	SampleRates  []byte `tlv8:"3"`
+	Channels        uint8  `tlv8:"1"`
+	BitrateModes    byte   `tlv8:"2"` // 0 (variable), 1 (constant)
+	SampleRates     []byte `tlv8:"3"`
+	MaxAudioBitrate uint32 `tlv8:"4"`
 }
 
 type SetupDataStreamSessionRequest struct {

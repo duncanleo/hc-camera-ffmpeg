@@ -1,6 +1,8 @@
 package camera
 
 import (
+	"fmt"
+
 	"github.com/brutella/hc/rtp"
 	"github.com/duncanleo/hc-camera-ffmpeg/hsv"
 )
@@ -44,6 +46,21 @@ func streamAudioSampleRate(cfg rtp.StreamConfiguration) int {
 		return 24000
 	default:
 		return 8000
+	}
+}
+
+func streamAudioBitrate(params rtp.AudioCodecParameters) []string {
+	switch params.Bitrate {
+	case rtp.AudioCodecBitrateConstant:
+		return []string{
+			"-b:a",
+			"256k",
+		}
+	default:
+		return []string{
+			"-vbr",
+			"3",
+		}
 	}
 }
 
@@ -144,5 +161,34 @@ func hksvAudioCodecOptions(codec byte) []string {
 		}
 	default:
 		return []string{}
+	}
+}
+
+func hksvAudioBitrate(audioCodecParams hsv.AudioCodecParameters) []string {
+	var maxBitrate = audioCodecParams.MaxAudioBitrate
+
+	switch audioCodecParams.BitrateModes {
+	case rtp.AudioCodecBitrateConstant:
+		return []string{
+			"-b:a",
+			fmt.Sprintf("%dk", maxBitrate),
+		}
+	default:
+		var vbrMode = 1
+
+		if maxBitrate >= 96 {
+			vbrMode = 5
+		} else if maxBitrate >= 64 {
+			vbrMode = 4
+		} else if maxBitrate >= 48 {
+			vbrMode = 3
+		} else if maxBitrate >= 32 {
+			vbrMode = 2
+		}
+
+		return []string{
+			"-vbr",
+			fmt.Sprintf("%d", vbrMode),
+		}
 	}
 }

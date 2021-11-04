@@ -42,6 +42,8 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 			"/dev/dri/renderD128",
 			"-hwaccel",
 			"vaapi",
+			"-hwaccel_output_format",
+			"vaapi",
 		}
 		encoder = "h264_vaapi"
 		encoderOpts = []string{
@@ -72,6 +74,8 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 		hksvVideoCodecLevel(videoCodecParams),
 		"-r",
 		fmt.Sprintf("%d", videoAttributes.FrameRate),
+		"-b:v",
+		fmt.Sprintf("%dk", videoCodecParams.Bitrate),
 	)
 
 	args = append(args, encoderOpts...)
@@ -126,6 +130,8 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			"intra-refresh=1:bframes=0",
 			"-vf",
 			fmt.Sprintf("scale=%d:-1", streamCfg.Video.Attributes.Width),
+			"-preset",
+			"veryfast",
 		}
 		break
 	case OMX:
@@ -140,6 +146,8 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			"-vaapi_device",
 			"/dev/dri/renderD128",
 			"-hwaccel",
+			"vaapi",
+			"-hwaccel_output_format",
 			"vaapi",
 		}
 		encoder = "h264_vaapi"
@@ -174,10 +182,6 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 	)
 
 	args = append(args, encoderOpts...)
-	args = append(args,
-		"-preset",
-		"veryfast",
-	)
 
 	if inputCfg.TimestampOverlay {
 		args = append(
@@ -220,6 +224,13 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			"2",
 			"-c:a",
 			audioCodec,
+		)
+
+		args = append(args,
+			streamAudioBitrate(streamCfg.Audio.CodecParams)...,
+		)
+
+		args = append(args,
 			"-map",
 			"0:1",
 			"-f",
@@ -232,8 +243,9 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			args,
 			"-srtp_out_suite",
 			"AES_CM_128_HMAC_SHA1_80",
-			"-b:a",
-			fmt.Sprintf("%dk", streamCfg.Audio.RTP.Bitrate),
+		)
+
+		args = append(args,
 			"-frame_duration",
 			"20",
 			"-srtp_out_params",
