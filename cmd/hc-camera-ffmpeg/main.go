@@ -126,7 +126,28 @@ func main() {
 
 	if *doorbell {
 		var doorbellService = service.NewDoorbell()
+		var doorbellServiceActive = characteristic.NewActive()
+		doorbellServiceActive.SetValue(1)
+		doorbellService.AddCharacteristic(doorbellServiceActive.Characteristic)
 		cameraAcc.AddService(doorbellService.Service)
+
+		for _, svc := range cameraAcc.GetServices() {
+			if svc.Type == custom_service.TypeCameraEventRecordingManagement {
+				svc.AddLinkedService(doorbellService.Service)
+			}
+		}
+
+		var speakerService = service.NewSpeaker()
+		var speakerServiceActive = characteristic.NewActive()
+		speakerServiceActive.SetValue(1)
+		speakerService.AddCharacteristic(speakerServiceActive.Characteristic)
+		cameraAcc.AddService(speakerService.Service)
+
+		var micService = service.NewMicrophone()
+		var micServiceActive = characteristic.NewActive()
+		micServiceActive.SetValue(1)
+		micService.AddCharacteristic(micServiceActive.Characteristic)
+		cameraAcc.AddService(micService.Service)
 
 		client.Subscribe(*doorbellTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
 			log.Printf("[%s]: %s\n", *doorbellTopic, string(msg.Payload()))

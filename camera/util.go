@@ -16,21 +16,11 @@ func setTLV8Payload(c *characteristic.Bytes, v interface{}) {
 }
 
 func hksvEventTriggerBitmask(motion, doorbell bool) byte {
-	var bits = make([]byte, 0)
-
-	if motion {
-		bits = append(bits, 0x01)
+	if motion && doorbell {
+		return 0x01 & 0x02
+	} else if motion {
+		return 0x01
+	} else {
+		return 0x02
 	}
-
-	if doorbell {
-		bits = append(bits, 0x02)
-	}
-
-	var result byte
-
-	for i := 0; i < len(bits); i++ {
-		result = result | bits[i]
-	}
-
-	return result
 }
