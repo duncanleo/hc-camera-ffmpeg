@@ -217,6 +217,8 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 							ffmpegOutBuffer := bufio.NewReaderSize(ffmpegOut, 1000000)
 
 							go func() {
+								defer ffmpegOut.Close()
+
 								if ffmpegProcess.ProcessState != nil && ffmpegProcess.ProcessState.Exited() {
 									return
 								}
