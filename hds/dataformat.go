@@ -335,7 +335,7 @@ func EncodeDataFormat(rawData interface{}) ([]byte, error) {
 	case []byte:
 		var data = rawData.([]byte)
 
-		var size = len(data)
+		var size = int64(len(data))
 
 		if size > 255 {
 			// uint16
@@ -355,7 +355,7 @@ func EncodeDataFormat(rawData interface{}) ([]byte, error) {
 			result.WriteByte(DataMedium)
 			result.Write(lengthBytes)
 			result.Write(data)
-		} else if size > 4294967295 {
+		} else if size > int64(4294967295) {
 			// uint64
 			var lengthBytes = make([]byte, 2)
 
