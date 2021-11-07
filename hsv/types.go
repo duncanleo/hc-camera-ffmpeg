@@ -24,7 +24,7 @@ type TransferTransportConfiguration struct {
 
 type RecordingConfiguration struct {
 	PrebufferLength              int64                         `tlv8:"1"` // HAP uses int64
-	EventTriggerOptions          uint64                        `tlv8:"2"`
+	EventTriggerOptions          byte                          `tlv8:"2"`
 	MediaContainerConfigurations []MediaContainerConfiguration `tlv8:"3"`
 }
 

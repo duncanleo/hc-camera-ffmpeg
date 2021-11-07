@@ -93,6 +93,11 @@ func main() {
 		break
 	}
 
+	var svcCfg = camera.ServiceConfiguration{
+		Motion:   *motion,
+		Doorbell: *doorbell,
+	}
+
 	var inputCfg = camera.InputConfiguration{
 		Source:           *cameraInput,
 		Format:           *cameraFormat,
@@ -101,7 +106,7 @@ func main() {
 		TimestampOverlay: *timestampOverlay,
 	}
 
-	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, inputCfg, encProfile)
+	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, svcCfg, inputCfg, encProfile)
 
 	var mqttURI *url.URL
 	var client mqtt.Client

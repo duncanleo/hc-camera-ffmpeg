@@ -32,6 +32,11 @@ var (
 	isDebugEnabled = debug == "*" || debug == "ffmpeg"
 )
 
+type ServiceConfiguration struct {
+	Motion   bool
+	Doorbell bool
+}
+
 type InputConfiguration struct {
 	Source           string
 	Format           string
@@ -41,7 +46,7 @@ type InputConfiguration struct {
 }
 
 // CreateCamera create a camera accessory
-func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderProfile EncoderProfile) (*accessory.Camera, func(width, height uint) (*image.Image, error)) {
+func CreateCamera(accInfo accessory.Info, svcCfg ServiceConfiguration, inputCfg InputConfiguration, encoderProfile EncoderProfile) (*accessory.Camera, func(width, height uint) (*image.Image, error)) {
 	camera := accessory.NewCamera(accInfo)
 
 	setupStreamMgmt(inputCfg, camera.StreamManagement1, encoderProfile)
@@ -153,7 +158,7 @@ func CreateCamera(accInfo accessory.Info, inputCfg InputConfiguration, encoderPr
 		cameraEventRecordingManagementService.SupportedCameraRecordingConfiguration.Bytes,
 		hsv.RecordingConfiguration{
 			PrebufferLength:     4000,
-			EventTriggerOptions: 0x01,
+			EventTriggerOptions: hksvEventTriggerBitmask(svcCfg.Motion, svcCfg.Doorbell),
 			MediaContainerConfigurations: []hsv.MediaContainerConfiguration{
 				{
 					MediaContainerType: 0, // Fragmented MP4
