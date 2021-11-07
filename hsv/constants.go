@@ -1,5 +1,7 @@
 package hsv
 
+import "time"
+
 const (
 	VideoCodecH264 = 0
 	VideoCodecH265 = 1
@@ -21,4 +23,9 @@ const (
 	SetupDataStreamTransportStatusBusy         = 0
 
 	TransportTypeHomeKitDataStream = 0
+
+	MediaContainerTypeFragmentedMP4 = 0
+
+	PrebufferLengthStandard = 4000 * time.Millisecond
+	FragmentLengthStandard  = 4000 * time.Millisecond
 )

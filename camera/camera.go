@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/rtp"
@@ -157,14 +158,14 @@ func CreateCamera(accInfo accessory.Info, svcCfg ServiceConfiguration, inputCfg 
 	setTLV8Payload(
 		cameraEventRecordingManagementService.SupportedCameraRecordingConfiguration.Bytes,
 		hsv.RecordingConfiguration{
-			PrebufferLength:     4000,
+			PrebufferLength:     int64(hsv.PrebufferLengthStandard / time.Millisecond),
 			EventTriggerOptions: hksvEventTriggerBitmask(svcCfg.Motion, svcCfg.Doorbell),
 			MediaContainerConfigurations: []hsv.MediaContainerConfiguration{
 				{
-					MediaContainerType: 0, // Fragmented MP4
+					MediaContainerType: hsv.MediaContainerTypeFragmentedMP4,
 					MediaContainerParameters: []hsv.MediaContainerParameters{
 						{
-							FragmentLength: 4000,
+							FragmentLength: int64(hsv.FragmentLengthStandard / time.Millisecond),
 						},
 					},
 				},

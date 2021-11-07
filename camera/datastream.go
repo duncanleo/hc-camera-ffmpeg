@@ -33,7 +33,7 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 		hsv.SupportedDataStreamTransportConfiguration{
 			TransferTransportConfigurations: []hsv.TransferTransportConfiguration{
 				{
-					TransportType: 0,
+					TransportType: hsv.TransportTypeHomeKitDataStream,
 				},
 			},
 		})
@@ -223,7 +223,7 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 
 								var dataSequenceNumber = 1
 								var dataChunkSequenceNumber = 1
-								var fragmentTotal = (4000000/100000)/2 - 1
+								var fragmentTotal = int(hsv.FragmentLengthStandard/FragmentDuration)/2 - 1
 								var collectedChunkTypes []string
 								var collectedChunks = make([]byte, 0)
 

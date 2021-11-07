@@ -3,9 +3,14 @@ package camera
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/brutella/hc/rtp"
 	"github.com/duncanleo/hc-camera-ffmpeg/hsv"
+)
+
+const (
+	FragmentDuration = 100 * time.Millisecond
 )
 
 func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderProfile, recordCfg hsv.SelectedCameraRecordingConfiguration) []string {
@@ -111,7 +116,7 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 		"-movflags",
 		"frag_keyframe+empty_moov+default_base_moof",
 		"-frag_duration",
-		"100000",
+		fmt.Sprintf("%d", int64(FragmentDuration/time.Microsecond)),
 		"pipe:1",
 	)
 
