@@ -20,7 +20,6 @@ type EncoderProfile int
 const (
 	_                  = iota
 	CPU EncoderProfile = 1 << (10 * iota)
-	OMX
 	VAAPI
 )
 

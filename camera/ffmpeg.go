@@ -30,13 +30,6 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 			"veryfast",
 		}
 		break
-	case OMX:
-		encoder = "h264_omx"
-		encoderOpts = []string{
-			"-vf",
-			fmt.Sprintf("scale=%d:-1", videoAttributes.ImageWidth),
-		}
-		break
 	case VAAPI:
 		inputOpts = []string{
 			"-vaapi_device",
@@ -104,8 +97,6 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 			args,
 			"-c:a",
 			audioCodecFfmpeg,
-			// "-map",
-			// "0:1",
 			"-ar",
 			fmt.Sprintf("%d", hksvAudioSampleRate(audioCodecParams)),
 		)
@@ -141,13 +132,6 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 			fmt.Sprintf("scale=%d:-1", streamCfg.Video.Attributes.Width),
 			"-preset",
 			"veryfast",
-		}
-		break
-	case OMX:
-		encoder = "h264_omx"
-		encoderOpts = []string{
-			"-vf",
-			fmt.Sprintf("scale=%d:-1", streamCfg.Video.Attributes.Width),
 		}
 		break
 	case VAAPI:

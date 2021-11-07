@@ -88,9 +88,6 @@ func main() {
 
 	var encProfile = camera.CPU
 	switch *encoderProfile {
-	case "OMX":
-		encProfile = camera.OMX
-		break
 	case "VAAPI":
 		encProfile = camera.VAAPI
 		break
