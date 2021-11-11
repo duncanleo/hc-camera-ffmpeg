@@ -16,6 +16,7 @@ import (
 	"github.com/duncanleo/hc-camera-ffmpeg/custom_service"
 	"github.com/duncanleo/hc-camera-ffmpeg/hds"
 	"github.com/duncanleo/hc-camera-ffmpeg/hsv"
+	"github.com/duncanleo/hc-camera-ffmpeg/mp4"
 )
 
 var (
@@ -225,9 +226,8 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 
 								var dataSequenceNumber = 1
 								var dataChunkSequenceNumber = 1
-								var fragmentTotal = int(hsv.FragmentLengthStandard/FragmentDuration)/2 - 1
-								var collectedChunkTypes []string
-								var collectedChunks = make([]byte, 0)
+								var fragmentTotal = int(hsv.FragmentLengthStandard/FragmentDuration) / 2
+								var collectedChunks = make([]mp4.Chunk, 0)
 
 								for {
 									log.Println("[FFMPEG HKSV] Waiting for data. Buffer size=", ffmpegOutBuffer.Buffered())
@@ -260,7 +260,8 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 									}
 
 									var chunkSizeBytes = chunkHeader[0:4]
-									var chunkSize = binary.BigEndian.Uint32(chunkSizeBytes) - uint32(len(chunkHeader)) - uint32(len(prependChunkData))
+									var chunkCompleteSize = binary.BigEndian.Uint32(chunkSizeBytes)
+									var chunkSize = chunkCompleteSize - uint32(len(chunkHeader)) - uint32(len(prependChunkData))
 
 									log.Printf("[FFMPEG HKSV] Chunk type=%s size=%d", chunkType, chunkSize)
 
@@ -278,8 +279,6 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 										continue
 									}
 
-									collectedChunkTypes = append(collectedChunkTypes, chunkType)
-
 									var chunkData = make([]byte, chunkSize)
 									_, err = io.ReadFull(ffmpegOutBuffer, chunkData)
 									if err != nil {
@@ -287,13 +286,18 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 										return
 									}
 
-									collectedChunks = append(collectedChunks, chunkHeader...)
-									collectedChunks = append(collectedChunks, prependChunkData...)
-									collectedChunks = append(collectedChunks, chunkData...)
+									var chunk = mp4.Chunk{
+										Size:     chunkCompleteSize,
+										MainType: chunkType,
+										SubType:  string(prependChunkData),
+										Data:     chunkData,
+									}
 
-									var isInitChunk = collectedChunkTypes[0] == "ftyp"
+									collectedChunks = append(collectedChunks, chunk)
 
-									if len(collectedChunkTypes) == 2 && (isInitChunk || dataChunkSequenceNumber <= fragmentTotal) {
+									var isInitChunk = collectedChunks[0].MainType == "ftyp"
+
+									if len(collectedChunks) == 2 && (isInitChunk || dataChunkSequenceNumber <= fragmentTotal) {
 
 										// Time to flush
 										var dataType = "mediaFragment"
@@ -303,6 +307,21 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 										}
 
 										var isLastDataChunk = isInitChunk || dataChunkSequenceNumber == fragmentTotal
+
+										var collectedChunkTypes = make([]string, 0)
+										var data = make([]byte, 0)
+										for _, chk := range collectedChunks {
+											collectedChunkTypes = append(collectedChunkTypes, chk.MainType)
+
+											dat, err := chk.Assemble()
+
+											if err != nil {
+												log.Println(err)
+												return
+											}
+
+											data = append(data, dat...)
+										}
 
 										var payload = hds.Payload{
 											Header: map[string]interface{}{
@@ -314,7 +333,7 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 												"streamId": message["streamId"],
 												"packets": []interface{}{
 													map[string]interface{}{
-														"data": collectedChunks,
+														"data": data,
 														"metadata": map[string]interface{}{
 															"dataType":                dataType,
 															"dataSequenceNumber":      dataSequenceNumber,
@@ -343,8 +362,7 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 										tcpConn.Write(newFrame.Assemble())
 
 										dataChunkSequenceNumber++
-										collectedChunkTypes = make([]string, 0)
-										collectedChunks = make([]byte, 0)
+										collectedChunks = make([]mp4.Chunk, 0)
 
 										if isLastDataChunk {
 											dataSequenceNumber++
