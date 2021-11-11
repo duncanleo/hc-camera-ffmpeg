@@ -66,6 +66,8 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 				args...,
 			)
 
+			inPipe, _ := ffmpegProcess.StdinPipe()
+
 			if isDebugEnabled {
 				log.Println(ffmpegProcess.String())
 			}
@@ -76,6 +78,18 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 			}
 			err = ffmpegProcess.Start()
 			initialStartMap[string(cfg.Command.Identifier)] = cfg
+
+			for _, chk := range initChunks {
+				dat, _ := chk.Assemble()
+
+				_, err := inPipe.Write(dat)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+			}
+
+			liveStreamConsumers[string(cfg.Command.Identifier)] = inPipe
 
 			log.Printf("start: %+v\n", cfg)
 			break
@@ -95,10 +109,12 @@ func setupStreamMgmt(inputCfg InputConfiguration, sm *service.CameraRTPStreamMan
 			break
 		case rtp.SessionControlCommandTypeEnd:
 			log.Println("end")
+
 			err = ffmpegProcess.Process.Kill()
 
 			delete(sessionMap, string(cfg.Command.Identifier))
 			delete(initialStartMap, string(cfg.Command.Identifier))
+			delete(liveStreamConsumers, string(cfg.Command.Identifier))
 			break
 		}
 

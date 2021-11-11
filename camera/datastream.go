@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 
 	"github.com/brutella/hc/characteristic"
@@ -208,12 +209,18 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 								args...,
 							)
 							log.Println(ffmpegProcess.String())
-							//		ffmpegProcess.Stderr = os.Stdout
+
+							if isDebugEnabled {
+								ffmpegProcess.Stderr = os.Stdout
+							}
+
 							ffmpegOut, err := ffmpegProcess.StdoutPipe()
 							if err != nil {
 								log.Println(err)
 								return
 							}
+
+							ffmpegIn, err := ffmpegProcess.StdinPipe()
 
 							ffmpegOutBuffer := bufio.NewReaderSize(ffmpegOut, 1000000)
 
@@ -230,7 +237,9 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 								var collectedChunks = make([]mp4.Chunk, 0)
 
 								for {
-									log.Println("[FFMPEG HKSV] Waiting for data. Buffer size=", ffmpegOutBuffer.Buffered())
+									if isDebugEnabled {
+										log.Println("[FFMPEG HKSV] Waiting for data. Buffer size=", ffmpegOutBuffer.Buffered())
+									}
 
 									var chunkHeader = make([]byte, 8)
 									_, err = io.ReadFull(ffmpegOutBuffer, chunkHeader)
@@ -239,7 +248,9 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 										return
 									}
 
-									log.Println("[FFMPEG HKSV] Read chunk header", chunkHeader)
+									if isDebugEnabled {
+										log.Println("[FFMPEG HKSV] Read chunk header", chunkHeader)
+									}
 
 									var chunkTypeBytes = chunkHeader[4:]
 									var chunkType = string(chunkTypeBytes)
@@ -256,7 +267,9 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 											return
 										}
 
-										log.Println("[FFMPEG HKSV] Read chunk sub-type", string(prependChunkData))
+										if isDebugEnabled {
+											log.Println("[FFMPEG HKSV] Read chunk sub-type", string(prependChunkData))
+										}
 									}
 
 									var chunkSizeBytes = chunkHeader[0:4]
@@ -381,14 +394,33 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 
 							log.Println("[FFMPEG HKSV] Spawn PID", ffmpegProcess.Process.Pid)
 
+							sessionMap[tcpConn.RemoteAddr().String()] = ffmpegProcess
+
+							for _, chk := range initChunks {
+								dat, _ := chk.Assemble()
+
+								ffmpegIn.Write(dat)
+							}
+
+							var prebufferDataClone = make([]mp4.Chunk, len(prebufferData))
+							copy(prebufferDataClone, prebufferData)
+
+							for _, chk := range prebufferDataClone {
+								dat, _ := chk.Assemble()
+
+								ffmpegIn.Write(dat)
+							}
+
+							liveStreamConsumers[tcpConn.RemoteAddr().String()] = ffmpegIn
+
 							defer func() {
 								if ffmpegProcess.ProcessState != nil && !ffmpegProcess.ProcessState.Exited() {
 									log.Println("[FFMPEG HKSV] Terminating PID", ffmpegProcess.Process.Pid)
 									ffmpegProcess.Process.Kill()
+									delete(liveStreamConsumers, tcpConn.RemoteAddr().String())
 								}
-							}()
 
-							sessionMap[tcpConn.RemoteAddr().String()] = ffmpegProcess
+							}()
 						}
 					}
 
@@ -398,6 +430,7 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 						if ffmpegProcess, ok := sessionMap[tcpConn.RemoteAddr().String()]; ok {
 							log.Println("[FFMPEG HKSV] Terminating PID", ffmpegProcess.Process.Pid)
 							ffmpegProcess.Process.Kill()
+							delete(liveStreamConsumers, tcpConn.RemoteAddr().String())
 						}
 					}
 				}

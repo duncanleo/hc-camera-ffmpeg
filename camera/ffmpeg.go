@@ -13,6 +13,112 @@ const (
 	FragmentDuration = 100 * time.Millisecond
 )
 
+func generateMotherStreamArguments(inputCfg InputConfiguration, encoderProfile EncoderProfile) []string {
+	var inputOpts []string
+	var encoder string
+	var encoderOpts []string
+
+	var width = 1920
+
+	switch encoderProfile {
+	case CPU:
+		encoder = "h264"
+		encoderOpts = []string{
+			"-x264-params",
+			"intra-refresh=1:bframes=0",
+			"-vf",
+			fmt.Sprintf("scale=%d:-1", width),
+			"-preset",
+			"veryfast",
+		}
+		break
+	case VAAPI:
+		inputOpts = []string{
+			"-vaapi_device",
+			"/dev/dri/renderD128",
+			"-hwaccel",
+			"vaapi",
+			"-hwaccel_output_format",
+			"vaapi",
+		}
+		encoder = "h264_vaapi"
+		encoderOpts = []string{
+			"-vf",
+			fmt.Sprintf("format=nv12|vaapi,hwupload,scale_vaapi=w=%d:h=-1", width),
+			"-bf",
+			"0",
+		}
+		break
+	}
+	var args []string
+	args = append(args, inputOpts...)
+
+	if strings.HasPrefix(inputCfg.Source, "rtsp://") {
+		args = append(args,
+			"-rtsp_transport",
+			"tcp",
+		)
+	}
+
+	args = append(
+		args,
+		"-f",
+		inputCfg.Format,
+		"-protocol_whitelist",
+		protocolWhitelist,
+		"-ss",
+		"00:00:01.000",
+		"-i",
+		inputCfg.Source,
+		"-c:v",
+		encoder,
+		"-profile:v",
+		"high",
+		"-level:v",
+		"4",
+		"-r",
+		fmt.Sprintf("%d", 30),
+		"-b:v",
+		fmt.Sprintf("%dk", 5000),
+	)
+
+	args = append(args, encoderOpts...)
+
+	if inputCfg.TimestampOverlay {
+		args = append(
+			args,
+			"-filter_complex",
+			"drawtext=text='time\\: %{localtime}':fontcolor=white",
+		)
+	}
+
+	var audioCodecFfmpeg = "aac"
+
+	if inputCfg.Audio {
+		args = append(
+			args,
+			"-c:a",
+			audioCodecFfmpeg,
+			"-ar",
+			fmt.Sprintf("%d", 44100),
+		)
+	}
+
+	// Output arguments
+	args = append(
+		args,
+		"-f",
+		"mp4",
+		"-movflags",
+		"frag_keyframe+empty_moov+default_base_moof",
+		"-frag_duration",
+		fmt.Sprintf("%d", int64(FragmentDuration/time.Microsecond)),
+		"pipe:1",
+	)
+
+	return args
+}
+
 func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderProfile, recordCfg hsv.SelectedCameraRecordingConfiguration) []string {
 	var inputOpts []string
 	var encoder string
@@ -66,13 +172,11 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 	args = append(
 		args,
 		"-f",
-		inputCfg.Format,
+		"mp4",
 		"-protocol_whitelist",
 		protocolWhitelist,
-		"-ss",
-		"00:00:01.000",
 		"-i",
-		inputCfg.Source,
+		"pipe:0",
 		"-c:v",
 		encoder,
 		"-profile:v",
@@ -158,6 +262,7 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 		break
 	}
 	var args []string
+
 	args = append(args, inputOpts...)
 
 	if strings.HasPrefix(inputCfg.Source, "rtsp://") {
@@ -170,13 +275,11 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 	args = append(
 		args,
 		"-f",
-		inputCfg.Format,
+		"mp4",
 		"-protocol_whitelist",
 		protocolWhitelist,
-		"-ss",
-		"00:00:01.000",
 		"-i",
-		inputCfg.Source,
+		"pipe:0",
 		"-c:v",
 		encoder,
 		"-profile:v",

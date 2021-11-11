@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	protocolWhitelist = "file,udp,tcp,rtp,http"
+	protocolWhitelist = "file,udp,tcp,rtp,http,pipe"
 )
 
 var (
@@ -48,6 +48,8 @@ type InputConfiguration struct {
 
 // CreateCamera create a camera accessory
 func CreateCamera(accInfo accessory.Info, svcCfg ServiceConfiguration, inputCfg InputConfiguration, encoderProfile EncoderProfile) (*accessory.Camera, func(width, height uint) (*image.Image, error)) {
+	motherStream(inputCfg, encoderProfile)
+
 	camera := accessory.NewCamera(accInfo)
 
 	setupStreamMgmt(inputCfg, camera.StreamManagement1, encoderProfile)

@@ -33,7 +33,6 @@ func (c Chunk) Assemble() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
 	_, err = buf.Write(c.Data)
