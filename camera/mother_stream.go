@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/duncanleo/hc-camera-ffmpeg/hsv"
 	"github.com/duncanleo/hc-camera-ffmpeg/mp4"
@@ -16,7 +17,7 @@ var (
 	initChunks    = make([]mp4.Chunk, 0)
 	prebufferData = make([]mp4.Chunk, 0)
 
-	prebufferDataMaxLength = int(hsv.FragmentLengthStandard / FragmentDuration)
+	prebufferDataMaxLength = int(hsv.PrebufferLengthStandard/FragmentDuration)*2 + int((2*time.Second)/FragmentDuration)*2 // padding
 
 	liveStreamConsumers = make(map[string]io.Writer)
 )
