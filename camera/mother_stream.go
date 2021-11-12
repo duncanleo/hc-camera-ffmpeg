@@ -176,5 +176,33 @@ func motherStream(inputCfg InputConfiguration, encoderProfile EncoderProfile) er
 		}
 	}()
 
+	go func() {
+		if !isDebugEnabled {
+			return
+		}
+
+		time.Sleep(10 * time.Second)
+
+		var ticker = time.NewTicker(1 * time.Minute)
+
+		for {
+			select {
+			case <-ticker.C:
+				var count uint32
+
+				for _, chk := range initChunks {
+					count += chk.Size
+				}
+
+				for _, chk := range prebufferData {
+					count += chk.Size
+				}
+
+				log.Printf("[MOTHER STREAM] Holding cache of size %.2fMiB\n", float32(count)/1000000)
+			}
+		}
+
+	}()
+
 	return nil
 }
