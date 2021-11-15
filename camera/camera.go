@@ -14,6 +14,7 @@ import (
 	"github.com/brutella/hc/tlv8"
 	"github.com/duncanleo/hc-camera-ffmpeg/custom_service"
 	"github.com/duncanleo/hc-camera-ffmpeg/hsv"
+	"github.com/duncanleo/hc-camera-ffmpeg/mp4"
 )
 
 type EncoderProfile int
@@ -187,14 +188,37 @@ func CreateCamera(accInfo accessory.Info, svcCfg ServiceConfiguration, inputCfg 
 			log.Println(ffmpegProcess.String())
 		}
 
+		inPipe, _ := ffmpegProcess.StdinPipe()
+
 		ffmpegProcess.Stdout = &stdoutPipe
 		if isDebugEnabled {
 			ffmpegProcess.Stderr = os.Stderr
 		}
-		err := ffmpegProcess.Run()
+		err := ffmpegProcess.Start()
 		if err != nil {
 			return nil, err
 		}
+
+		for _, chk := range initChunks {
+			dat, _ := chk.Assemble()
+
+			inPipe.Write(dat)
+		}
+
+		var prebufferDataClone = make([]mp4.Chunk, len(prebufferData))
+		copy(prebufferDataClone, prebufferData)
+
+		for _, chk := range prebufferDataClone {
+			dat, _ := chk.Assemble()
+
+			inPipe.Write(dat)
+		}
+
+		err = ffmpegProcess.Wait()
+		if err != nil {
+			return nil, err
+		}
+
 		img, _, err := image.Decode(&stdoutPipe)
 		return &img, err
 	}
