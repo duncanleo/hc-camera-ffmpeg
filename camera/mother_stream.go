@@ -204,5 +204,10 @@ func motherStream(inputCfg InputConfiguration, encoderProfile EncoderProfile) er
 
 	}()
 
+	err = ffmpegProcess.Wait()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

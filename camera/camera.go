@@ -49,7 +49,13 @@ type InputConfiguration struct {
 
 // CreateCamera create a camera accessory
 func CreateCamera(accInfo accessory.Info, svcCfg ServiceConfiguration, inputCfg InputConfiguration, encoderProfile EncoderProfile) (*accessory.Camera, func(width, height uint) (*image.Image, error)) {
-	motherStream(inputCfg, encoderProfile)
+	go func() {
+		for {
+			motherStream(inputCfg, encoderProfile)
+			log.Println("[MOTHER STREAM] terminated, restarting in 5s")
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	camera := accessory.NewCamera(accInfo)
 
