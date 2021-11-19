@@ -151,8 +151,7 @@ func main() {
 
 		client.Subscribe(*doorbellTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
 			log.Printf("[%s]: %s\n", *doorbellTopic, string(msg.Payload()))
-			doorbellService.ProgrammableSwitchEvent.SetValue(characteristic.ProgrammableSwitchEventLongPress)
-			doorbellService.ProgrammableSwitchEvent.UpdateValue(characteristic.ProgrammableSwitchEventSinglePress)
+			doorbellService.ProgrammableSwitchEvent.SetValue(characteristic.ProgrammableSwitchEventSinglePress)
 		})
 	}
 
