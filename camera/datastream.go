@@ -2,6 +2,7 @@ package camera
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
@@ -10,6 +11,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/brutella/hc/characteristic"
 	"github.com/brutella/hc/hap"
@@ -233,7 +235,7 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 
 								var dataSequenceNumber = 1
 								var dataChunkSequenceNumber = 1
-								var fragmentTotal = int(hsv.FragmentLengthStandard/FragmentDuration) / 2
+								var fragmentTotal = int(hsv.FragmentLengthStandard/FragmentDurationHKSV) / 2
 								var collectedChunks = make([]mp4.Chunk, 0)
 
 								for {
@@ -276,7 +278,9 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 									var chunkCompleteSize = binary.BigEndian.Uint32(chunkSizeBytes)
 									var chunkSize = chunkCompleteSize - uint32(len(chunkHeader)) - uint32(len(prependChunkData))
 
-									log.Printf("[FFMPEG HKSV] Chunk type=%s size=%d", chunkType, chunkSize)
+									if isDebugEnabled {
+										log.Printf("[FFMPEG HKSV] Chunk type=%s size=%d", chunkType, chunkSize)
+									}
 
 									// Sanity check
 									switch chunkType {
@@ -358,7 +362,9 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 											},
 										}
 
-										log.Printf("[FFMPEG HKSV] Flushing chunks %+v dataType=%s dataSequenceNumber=%d dataChunkSequenceNumber=%d fragmentTotal=%d isLastDataChunk=%+v\n", collectedChunkTypes, dataType, dataSequenceNumber, dataChunkSequenceNumber, fragmentTotal, isLastDataChunk)
+										if isDebugEnabled {
+											log.Printf("[FFMPEG HKSV] Flushing chunks %+v dataType=%s dataSequenceNumber=%d dataChunkSequenceNumber=%d fragmentTotal=%d isLastDataChunk=%+v\n", collectedChunkTypes, dataType, dataSequenceNumber, dataChunkSequenceNumber, fragmentTotal, isLastDataChunk)
+										}
 
 										encodedPayload, err := payload.Encode()
 										if err != nil {
@@ -402,16 +408,27 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 								ffmpegIn.Write(dat)
 							}
 
-							var prebufferDataClone = make([]mp4.Chunk, len(prebufferData))
-							copy(prebufferDataClone, prebufferData)
+							var sliceIndex = len(prebufferData) - preBufferDataSliceLength
+							if sliceIndex < 0 {
+								sliceIndex = 0
+							}
+
+							var prebufferDataClone = make([]mp4.Chunk, preBufferDataSliceLength)
+							copy(prebufferDataClone, prebufferData[sliceIndex:])
+
+							var buf bytes.Buffer
+
+							liveStreamConsumers[tcpConn.RemoteAddr().String()] = &buf
 
 							for _, chk := range prebufferDataClone {
 								dat, _ := chk.Assemble()
 
-								ffmpegIn.Write(dat)
+								_, err := ffmpegIn.Write(dat)
+								if err != nil {
+									log.Println(err)
+									return
+								}
 							}
-
-							liveStreamConsumers[tcpConn.RemoteAddr().String()] = ffmpegIn
 
 							defer func() {
 								if ffmpegProcess.ProcessState != nil && !ffmpegProcess.ProcessState.Exited() {
@@ -421,6 +438,24 @@ func createDataStreamService(inputCfg InputConfiguration, encoderProfile Encoder
 								}
 
 							}()
+
+							go func() {
+								for {
+									_, err := io.Copy(ffmpegIn, &buf)
+
+									if err != nil {
+										log.Println(err)
+										break
+									}
+
+									time.Sleep(time.Millisecond * 50)
+
+									if _, ok := liveStreamConsumers[tcpConn.RemoteAddr().String()]; !ok {
+										break
+									}
+								}
+							}()
+
 						}
 					}
 

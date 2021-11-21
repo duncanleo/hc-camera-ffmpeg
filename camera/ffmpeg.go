@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	FragmentDuration = 100 * time.Millisecond
+	FragmentDurationMotherStream = 40 * time.Millisecond
+	FragmentDurationHKSV         = 100 * time.Millisecond
 )
 
 func generateMotherStreamArguments(inputCfg InputConfiguration, encoderProfile EncoderProfile) []string {
@@ -68,6 +69,7 @@ func generateMotherStreamArguments(inputCfg InputConfiguration, encoderProfile E
 		protocolWhitelist,
 		"-ss",
 		"00:00:01.000",
+		"-re",
 		"-i",
 		inputCfg.Source,
 		"-c:v",
@@ -114,7 +116,7 @@ func generateMotherStreamArguments(inputCfg InputConfiguration, encoderProfile E
 		"-movflags",
 		"frag_keyframe+empty_moov+default_base_moof",
 		"-frag_duration",
-		fmt.Sprintf("%d", int64(FragmentDuration/time.Microsecond)),
+		fmt.Sprintf("%d", int64(FragmentDurationMotherStream/time.Microsecond)),
 		"pipe:1",
 	)
 
@@ -224,7 +226,7 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 		"-movflags",
 		"frag_keyframe+empty_moov+default_base_moof",
 		"-frag_duration",
-		fmt.Sprintf("%d", int64(FragmentDuration/time.Microsecond)),
+		fmt.Sprintf("%d", int64(FragmentDurationHKSV/time.Microsecond)),
 		"pipe:1",
 	)
 

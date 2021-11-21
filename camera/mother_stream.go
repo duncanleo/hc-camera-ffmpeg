@@ -17,7 +17,9 @@ var (
 	initChunks    = make([]mp4.Chunk, 0)
 	prebufferData = make([]mp4.Chunk, 0)
 
-	prebufferDataMaxLength = int(hsv.PrebufferLengthStandard/FragmentDuration)*2 + int((2*time.Second)/FragmentDuration)*2 // padding
+	preBufferDataSliceLength = int(hsv.PrebufferLengthStandard/FragmentDurationMotherStream) * 2
+
+	prebufferDataMaxLength = preBufferDataSliceLength * 3
 
 	liveStreamConsumers = make(map[string]io.Writer)
 )
@@ -122,40 +124,32 @@ func motherStream(inputCfg InputConfiguration, encoderProfile EncoderProfile) er
 				Data:     chunkData,
 			}
 
-			collectedChunks = append(collectedChunks, chunk)
+			if len(initChunks) == 0 {
+				collectedChunks = append(collectedChunks, chunk)
 
-			if len(collectedChunks) == 2 {
-				if isDebugEnabled {
-					log.Println("[MOTHER STREAM] Flushing")
-				}
-
-				switch collectedChunks[0].MainType {
-				case "ftyp":
+				if len(collectedChunks) == 2 && collectedChunks[0].MainType == "ftyp" {
 					initChunks = collectedChunks
-				default:
-					if len(prebufferData)+2 > prebufferDataMaxLength {
-						prebufferData = prebufferData[2:]
-					}
-
-					prebufferData = append(prebufferData, collectedChunks...)
 				}
-
-				collectedChunks = make([]mp4.Chunk, 0)
-
-				if isDebugEnabled {
-					log.Printf("[MOTHER STREAM] Prebuffer data %d/%d\n", len(prebufferData), prebufferDataMaxLength)
-				}
+				continue
 			}
+
+			if len(prebufferData)+1 > prebufferDataMaxLength {
+				prebufferData = prebufferData[1:]
+			}
+
+			prebufferData = append(prebufferData, chunk)
 
 			if isDebugEnabled {
 				log.Printf("[MOTHER STREAM] Writing to %d consumers\n", len(liveStreamConsumers))
 			}
 
 			dat, _ := chunk.Assemble()
-			for _, consumer := range liveStreamConsumers {
+
+			for key, consumer := range liveStreamConsumers {
 				_, err := consumer.Write(dat)
 				if err != nil {
-					log.Println(err)
+					log.Println("Live Consumer Error, Evict", err)
+					delete(liveStreamConsumers, key)
 				}
 			}
 		}
