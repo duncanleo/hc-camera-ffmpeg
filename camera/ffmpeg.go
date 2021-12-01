@@ -166,13 +166,6 @@ func generateHKSVArguments(inputCfg InputConfiguration, encoderProfile EncoderPr
 	var args []string
 	args = append(args, inputOpts...)
 
-	if strings.HasPrefix(inputCfg.Source, "rtsp://") {
-		args = append(args,
-			"-rtsp_transport",
-			"tcp",
-		)
-	}
-
 	args = append(
 		args,
 		"-f",
@@ -270,13 +263,6 @@ func generateArguments(inputCfg InputConfiguration, streamCfg rtp.StreamConfigur
 	var args []string
 
 	args = append(args, inputOpts...)
-
-	if strings.HasPrefix(inputCfg.Source, "rtsp://") {
-		args = append(args,
-			"-rtsp_transport",
-			"tcp",
-		)
-	}
 
 	args = append(
 		args,
