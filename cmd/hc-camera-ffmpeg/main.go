@@ -5,14 +5,23 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/brutella/hc"
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/characteristic"
+	hcLog "github.com/brutella/hc/log"
 	"github.com/brutella/hc/service"
 	"github.com/duncanleo/hc-camera-ffmpeg/camera"
+	"github.com/duncanleo/hc-camera-ffmpeg/custom_service"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+)
+
+var (
+	debug          = os.Getenv("DEBUG")
+	isDebugEnabled = debug == "*" || debug == "ffmpeg"
 )
 
 func connect(clientID string, uri *url.URL) (mqtt.Client, error) {
@@ -56,9 +65,12 @@ func main() {
 	var motion = flag.Bool("motion", false, "whether to enable motion support")
 	var motionTopic = flag.String("motionTopic", "mqtt-publish", "MQTT topic to subscribe to")
 
+	var firmwareRevision = flag.String("firmwareRevision", "0.0.1", "firmware revision")
+
 	flag.Parse()
 
-	if *doorbell {
+	if strings.Contains(*name, "\"") {
+		log.Fatalf("Name '%s' cannot contain quotes\n", *name)
 	}
 
 	hcConfig := hc.Config{
@@ -68,19 +80,22 @@ func main() {
 	}
 
 	cameraInfo := accessory.Info{
-		Name:         *name,
-		Manufacturer: *manufacturer,
-		Model:        *model,
+		Name:             *name,
+		Manufacturer:     *manufacturer,
+		Model:            *model,
+		FirmwareRevision: *firmwareRevision,
 	}
 
 	var encProfile = camera.CPU
 	switch *encoderProfile {
-	case "OMX":
-		encProfile = camera.OMX
-		break
 	case "VAAPI":
 		encProfile = camera.VAAPI
 		break
+	}
+
+	var svcCfg = camera.ServiceConfiguration{
+		Motion:   *motion,
+		Doorbell: *doorbell,
 	}
 
 	var inputCfg = camera.InputConfiguration{
@@ -91,7 +106,7 @@ func main() {
 		TimestampOverlay: *timestampOverlay,
 	}
 
-	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, inputCfg, encProfile)
+	cameraAcc, snapshotFunc := camera.CreateCamera(cameraInfo, svcCfg, inputCfg, encProfile)
 
 	var mqttURI *url.URL
 	var client mqtt.Client
@@ -111,23 +126,58 @@ func main() {
 
 	if *doorbell {
 		var doorbellService = service.NewDoorbell()
+		var doorbellServiceActive = characteristic.NewActive()
+		doorbellServiceActive.SetValue(1)
+		doorbellService.AddCharacteristic(doorbellServiceActive.Characteristic)
 		cameraAcc.AddService(doorbellService.Service)
+
+		for _, svc := range cameraAcc.GetServices() {
+			if svc.Type == custom_service.TypeCameraEventRecordingManagement {
+				svc.AddLinkedService(doorbellService.Service)
+			}
+		}
+
+		var speakerService = service.NewSpeaker()
+		var speakerServiceActive = characteristic.NewActive()
+		speakerServiceActive.SetValue(1)
+		speakerService.AddCharacteristic(speakerServiceActive.Characteristic)
+		cameraAcc.AddService(speakerService.Service)
+
+		var micService = service.NewMicrophone()
+		var micServiceActive = characteristic.NewActive()
+		micServiceActive.SetValue(1)
+		micService.AddCharacteristic(micServiceActive.Characteristic)
+		cameraAcc.AddService(micService.Service)
 
 		client.Subscribe(*doorbellTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
 			log.Printf("[%s]: %s\n", *doorbellTopic, string(msg.Payload()))
-			doorbellService.ProgrammableSwitchEvent.SetValue(characteristic.ProgrammableSwitchEventLongPress)
-			doorbellService.ProgrammableSwitchEvent.UpdateValue(characteristic.ProgrammableSwitchEventSinglePress)
+			doorbellService.ProgrammableSwitchEvent.SetValue(characteristic.ProgrammableSwitchEventSinglePress)
 		})
 	}
 
 	if *motion {
 		var motionService = service.NewMotionSensor()
+		var motionServiceActive = characteristic.NewActive()
+		motionServiceActive.SetValue(1)
+		motionService.AddCharacteristic(motionServiceActive.Characteristic)
 		cameraAcc.AddService(motionService.Service)
+
+		for _, svc := range cameraAcc.GetServices() {
+			if svc.Type == custom_service.TypeCameraEventRecordingManagement {
+				svc.AddLinkedService(motionService.Service)
+			}
+		}
 
 		client.Subscribe(*motionTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
 			log.Printf("[%s]: %s\n", *motionTopic, string(msg.Payload()))
 			motionService.MotionDetected.Bool.SetValue(string(msg.Payload()) == "ON")
 		})
+	}
+
+	hcLog.Info.Enable()
+
+	if isDebugEnabled {
+		hcLog.Debug.Enable()
 	}
 
 	t, err := hc.NewIPTransport(hcConfig, cameraAcc.Accessory)
@@ -136,6 +186,7 @@ func main() {
 	}
 
 	t.CameraSnapshotReq = snapshotFunc
+	camera.HAPContext = &t.Context
 
 	hc.OnTermination(func() {
 		<-t.Stop()
